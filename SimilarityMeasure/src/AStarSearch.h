@@ -42,6 +42,7 @@ protected:
 	void extendTrails(vector<int>& searchTrailPositions,
 			vector<vector<int>*>& searchTrailTargets, vector<int>& degreeTrail,
 			Item& item, int propertyId, int& weight);
+	IndexReader* alterReaderDirection(Direction& direction);
 
 };
 
@@ -101,15 +102,19 @@ void AStarSearch::search(int itemId) {
 	int inDegree = in.getDegree();
 	int outDegree = out.getDegree();
 	vector<StatementGroup>& stmtGrs = out.getStatementGroups();
+	vector<int> itemTrail;
+	itemTrail.push_back(itemId);
 	for (int i = 0; i < stmtGrs.size(); i++) {
 		int pId = stmtGrs[i].pId;
 		vector<int>& targets = stmtGrs[i].getTargets();
-		// untersuche für jedes target, ob ähnlichkeiten exsistieren
-		//	-> Berechne Ähnlichkeit für Target und dividiere durch inDegree+outDegree
-		// Ähnlichkeit Berechnen -> get a trail
-		//TODO: create ItemTrail and PropertyTrail
-		//TODO: call hasSimilarity
-		// compute Siliarity (add to Similarity)
+		vector<int> propertyTrail;
+		propertyTrail.push_back(pId);
+		for(int j = 0; j < targets.size(); j++){
+			itemTrail.push_back(targets[j]);
+			vector<int*>* candidates = hasSimilarity(propertyTrail, itemTrail, outgoing, outDegree);
+			// TODO update TOP_K
+			itemTrail.pop_back();
+		}
 	}
 }
 
@@ -134,13 +139,11 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 	Direction direct = direction;
 	if (direct == outgoing) {
 		reader = &oReader;
-		direct = incomming;
 	} else {
 		reader = &iReader;
-		direct = outgoing;
 	}
 
-	int itemId = itemTrail[itemTrail.size() - 1];
+	int itemId = itemTrail.back();
 
 	vector<vector<int>*> searchTrailTargets;
 	vector<int> searchTrailPositions;
@@ -234,6 +237,18 @@ void AStarSearch::extendTrails(vector<int>& searchTrailPositions,
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element
 		searchTrailPositions.push_back(0);
 	}
+}
+
+IndexReader* AStarSearch::alterReaderDirection(Direction& direction){
+	IndexReader* reader;
+	if (direction == outgoing) {
+		reader = &oReader;
+		direction = incomming;
+	} else {
+		reader = &iReader;
+		direction = outgoing;
+	}
+	return reader;
 }
 
 #endif /* ASTARSEARCH_H_ */
