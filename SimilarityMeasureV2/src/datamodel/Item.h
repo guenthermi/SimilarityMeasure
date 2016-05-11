@@ -68,7 +68,7 @@ void Item::setId(int id) {
 int Item::getDegree() {
 	int result = 0;
 	for (int i = 0; i < stmtGrs.size(); i++) {
-		result += stmtGrs[i];
+		result += stmtGrs[i].getTargets().size();
 	}
 	return result;
 }
