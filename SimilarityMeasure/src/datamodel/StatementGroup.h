@@ -19,7 +19,7 @@ public:
 	StatementGroup(int pId);
 	int getPropertyId();
 	vector<int>& getTargets();
-	void pushTarget(int target, bool safemode = true);
+	void pushTarget(int target, bool safemode = false);
 protected:
 	int pId;
 	vector<int> targets;

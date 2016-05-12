@@ -127,8 +127,8 @@ Item& IndexReader::getItemById(int id) {
 		string line;
 		getline(stream, line);
 		Item item = parser.parseItem(line);
-
 		if (item.getId() == id) {
+			cout << "get here" << endl;
 			pushToCache(item);
 			return cache[item.getId()]->entry;
 		}

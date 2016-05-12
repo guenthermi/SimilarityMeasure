@@ -11,20 +11,23 @@
 #include "NodeFinder.h"
 #include "Direction.h"
 #include "IndexReader.h"
+#include "datamodel/Item.h"
+#include "datamodel/StatementGroup.h"
 
 #include <vector>
+#include <algorithm>
 
 class AStarSearch {
 public:
-
-	static const int kK = 100;
 
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
 
 	void updateTopK(int* update);
 	void updateTopK(int itemId, int value);
-	int** getTopK();
-	int getBestMatch();
+	void updateTopK(vector<int*>* candidates);
+	void pruneTopK(int min);
+	vector<int*>& getTopK();
+	int* getBestMatch();
 	void search(int itemId);
 	vector<int*>* hasSimilarity(vector<int> propertyTrail,
 			vector<int> itemTrail, Direction direction, int weight);
@@ -34,7 +37,7 @@ protected:
 	NodeFinder finder;
 	IndexReader& iReader;
 	IndexReader& oReader;
-	int** topK;
+	vector<int*> topK;
 	int* top;
 
 	void addItemToResult(vector<int*>* result, Item& item,
@@ -43,12 +46,13 @@ protected:
 			vector<vector<int>*>& searchTrailTargets, vector<int>& degreeTrail,
 			Item& item, int propertyId, int& weight);
 	IndexReader* alterReaderDirection(Direction& direction);
+	template<typename T> void clearVector(vector<T*>& v);
+	static bool cmp(const int* a, const int* b);
 
 };
 
 AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 		oReader(outReader), iReader(inReader), finder(inReader, outReader) {
-	topK = new int*[kK];
 	top = new int[2];
 	top[0] = 0;
 	top[1] = 0;
@@ -61,38 +65,39 @@ void AStarSearch::updateTopK(int* update) {
 }
 
 void AStarSearch::updateTopK(int itemId, int value) {
-	int min = 0;
-	int minI = 0;
-	int i = 0;
-	for (i = 0; i < kK; i++) {
-		if (topK[i][0] == 0) {
-			topK[i][0] = itemId;
-			topK[i][1] = value;
-			break;
-		}
-		if (topK[i][0] == itemId) {
-			topK[i][1] = value;
-			break;
-		}
-		if (min > topK[i][1]) {
-			min = topK[i][1];
-			minI = i;
-		}
-	}
-	if (i == kK) {
-		topK[minI][0] = itemId;
-		topK[minI][1] = value;
-	}
-	if (value > top[1]) {
-		top = itemId;
+	int* elem = new int[2];
+	elem[0] = itemId;
+	elem[1] = value;
+	topK.push_back(elem);
+	if (top[1] < elem[1]){
+		top = elem;
 	}
 }
 
-int** AStarSearch::getTopK() {
+void AStarSearch::updateTopK(vector<int*>* candidates){
+	for (int i=0; i<candidates->size(); i++){
+		topK.push_back((*candidates)[i]);
+	}
+}
+
+void AStarSearch::pruneTopK(int min){
+	sort(topK.begin(), topK.end(), cmp);
+	for (int i=0; i<topK.size(); i++){
+		if (topK[i][1] < min){
+
+		}
+	}
+	while ((topK.back()[1] < min) && (topK.size() > 0)){
+		delete[] topK.back();
+		topK.pop_back();
+	}
+}
+
+vector<int*>& AStarSearch::getTopK() {
 	return topK;
 }
 
-int AStarSearch::getBestMatch() {
+int* AStarSearch::getBestMatch() {
 	return top;
 }
 
@@ -105,14 +110,15 @@ void AStarSearch::search(int itemId) {
 	vector<int> itemTrail;
 	itemTrail.push_back(itemId);
 	for (int i = 0; i < stmtGrs.size(); i++) {
-		int pId = stmtGrs[i].pId;
+		int pId = stmtGrs[i].getPropertyId();
 		vector<int>& targets = stmtGrs[i].getTargets();
 		vector<int> propertyTrail;
 		propertyTrail.push_back(pId);
 		for(int j = 0; j < targets.size(); j++){
 			itemTrail.push_back(targets[j]);
 			vector<int*>* candidates = hasSimilarity(propertyTrail, itemTrail, outgoing, outDegree);
-			// TODO update TOP_K
+			updateTopK(candidates);
+			delete candidates;
 			itemTrail.pop_back();
 		}
 	}
@@ -212,9 +218,8 @@ void AStarSearch::addItemToResult(vector<int*>* result, Item& item,
 		}
 	}
 
-	// add item
+	// add item if not in blacklist
 	if (!inBlacklist) {
-		// add item to results
 		int* elem = new int[2];
 		elem[0] = item.getId();
 		elem[1] = weight1 * weight2;
@@ -249,6 +254,20 @@ IndexReader* AStarSearch::alterReaderDirection(Direction& direction){
 		direction = outgoing;
 	}
 	return reader;
+}
+
+template<typename T> void AStarSearch::clearVector(vector<T*>& v){
+	for (size_t i=0; i<v.size();i++){
+		delete[] v[i];
+	}
+}
+
+bool AStarSearch::cmp(const int* a, const int* b){
+	if (a[1] > b[1]){
+		return true;
+	}else{
+		return false;
+	}
 }
 
 #endif /* ASTARSEARCH_H_ */

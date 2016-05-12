@@ -16,6 +16,7 @@
 #include <string>
 #include "stdlib.h"
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -25,25 +26,26 @@ public:
 	Item parseItem(string line);
 	int* parsePropertyCount(string line);
 protected:
-	static vector<string> split(string text, char dlm) {
-		size_t pos;
-		vector<string> result;
-		while ((pos = text.find(dlm)) != string::npos) {
-			result.push_back(text.substr(0, pos));
-			text.erase(0, pos + 1);
+	static void split(string text, char dlm, vector<string>& result) {
+		string::const_iterator start = text.begin();
+		string::const_iterator end = text.end();
+		string::const_iterator next = find( start, end, dlm );
+		while ( next != end ) {
+			result.push_back( string( start, next ) );
+			start = next + 1;
+			next = find( start, end, dlm );
 		}
-		if (text.length()){
-			result.push_back(text);
+		if (start < end){
+			result.push_back( string( start, next ) );
 		}
-		return result;
 	}
-	static vector<int> splitInts(string text, char dlm) {
-		vector<string> splits = split(text, dlm);
-		vector<int> result;
+	static void splitInts(string text, char dlm, vector<int>& result) {
+		vector<string> splits;
+		split(text, dlm, splits);
+//		cout << "1.1" << endl;
 		for (size_t i = 0; i < splits.size(); i++) {
 			result.push_back(atoi(splits[i].c_str()));
 		}
-		return result;
 	}
 };
 
@@ -52,13 +54,16 @@ Parser::Parser() {
 }
 
 Item Parser::parseItem(string line) {
-	vector<string> splits = split(line, ';');
+	vector<string> splits;
+	split(line, ';', splits);
 	int itemId = atoi(splits[0].c_str());
 	Item item = Item(itemId);
 	for (size_t i = 1; i < splits.size(); i++) {
-		vector<int> stmtgr = splitInts(splits[i], ',');
+		vector<int> stmtgr;
+		splitInts(splits[i], ',', stmtgr);
 		StatementGroup statementGroup(stmtgr[0]);
-		for (size_t j = 1; j < stmtgr.size(); j++) {
+		size_t j;
+		for (j = 1; j < stmtgr.size(); j++) {
 			statementGroup.pushTarget(stmtgr[j]);
 		}
 		item.pushStmtGr(statementGroup);
@@ -68,7 +73,8 @@ Item Parser::parseItem(string line) {
 }
 
 int* Parser::parsePropertyCount(string line){
-	vector<int> splits = splitInts(line, ':');
+	vector<int> splits;
+	splitInts(line, ':', splits);
 	int array[2];
 
 	if (splits.size() != 2){
