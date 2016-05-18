@@ -16,6 +16,7 @@
 #include <map>
 #include <fstream>
 #include <limits>
+#include <string>
 
 using namespace std;
 
@@ -25,11 +26,12 @@ public:
 	static const int cacheSize = 1000000;
 	static const int cacheFreeRate = 100000;
 
-	IndexReader(char* indexFile);
-	void jumpToBegin();
-	bool hasNextItem();
-	bool getNextItem(Item& item, bool caching = false);
-	Item& getItemById(int id);
+	IndexReader(string indexFile);
+	virtual void jumpToBegin();
+	virtual bool hasNextItem();
+	virtual bool getNextItem(Item& item, bool caching = false);
+	virtual Item& getItemById(int id);
+	string getPath();
 
 protected:
 
@@ -42,29 +44,30 @@ protected:
 		unsigned char usage;
 		Item entry;
 	};
+	map<int, CacheLine*> cache;
 
 	void pushToCache(Item item);
 	void freeCache(int amount);
 
-	map<int, CacheLine*> cache;
 	int minCacheUsage;
 	ifstream file;
 	Parser parser;
-	char* filePath;
+	string filePath;
+	Item nullItem;
 
 	int cacheUsed;
 	int fileUsed;
 };
 
-IndexReader::IndexReader(char* indexFile) {
+IndexReader::IndexReader(string indexFile) {
 	cache = map<int, CacheLine*>();
 	minCacheUsage = 0;
-	file.open(indexFile);
+	file.open(indexFile.c_str());
 	parser = Parser();
 	filePath = indexFile;
-
 	cacheUsed = 0;
 	fileUsed = 0;
+	nullItem = Item(0);
 
 }
 
@@ -105,9 +108,9 @@ Item& IndexReader::getItemById(int id) {
 		return line->entry;
 	}
 	fileUsed++;
-	// item is not in the cache -> read from file
 
-	ifstream stream(filePath);
+	// item is not in the cache -> read from file
+	ifstream stream(filePath.c_str());
 	long fileSize, upperBoundPos, lowerBoundPos;
 
 	// compute file size
@@ -128,12 +131,11 @@ Item& IndexReader::getItemById(int id) {
 		getline(stream, line);
 		Item item = parser.parseItem(line);
 		if (item.getId() == id) {
-			cout << "get here" << endl;
 			pushToCache(item);
 			return cache[item.getId()]->entry;
 		}
 		if ((upperBoundPos - lowerBoundPos) <= 2) {
-			throw 20;
+			return nullItem;
 		}
 		if (item.getId() > id) {
 			lowerBoundPos = (upperBoundPos - lowerBoundPos) / 2 + lowerBoundPos;
@@ -143,6 +145,10 @@ Item& IndexReader::getItemById(int id) {
 	}
 
 	throw 20;
+}
+
+string IndexReader::getPath(){
+	return filePath;
 }
 
 void IndexReader::pushToCache(Item item) {

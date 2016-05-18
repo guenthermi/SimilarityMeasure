@@ -11,6 +11,8 @@
 #include "StatementGroup.h"
 
 #include <vector>
+#include <string>
+#include <sstream>
 
 using namespace std;
 
@@ -24,6 +26,7 @@ public:
 	void setId(int id);
 	int getId();
 	int getDegree();
+	string toString();
 protected:
 	int qId;
 	vector<StatementGroup> stmtGrs;
@@ -71,6 +74,24 @@ int Item::getDegree() {
 		result += stmtGrs[i].getTargets().size();
 	}
 	return result;
+}
+
+string Item::toString(){
+	stringstream ss;
+	ss << "Q" << qId << ": " << endl;
+
+	for (int i=0; i<stmtGrs.size(); i++){
+		ss << "\tP" << stmtGrs[i].getPropertyId() << ": ";
+		for (int j=0; j<stmtGrs[i].getTargets().size(); j++){
+			ss << "Q" << stmtGrs[i].getTargets()[j];
+			if (j < (stmtGrs[i].getTargets().size() - 1)){
+				ss << ", ";
+			}
+		}
+		ss << endl;
+	}
+	ss << endl;
+	return ss.str();
 }
 
 #endif /* ITEM_H_ */

@@ -12,6 +12,7 @@
 #include "NodeFinder.h"
 #include "PropertyStatistics.h"
 #include "AStarSearch.h"
+#include "PartedIndexReader.h"
 
 #include <iostream>
 
@@ -38,12 +39,32 @@ void testIndexReader() {
 	cout << "Complete IndexReader Test" << endl << endl;
 }
 
+void testPartedIndexReader() {
+	cout << "Start Testing - PartedIndexReader" << endl;
+
+	PartedIndexReader inReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndex");
+	Item* item;
+	for (int i=0; i<100; i++){
+		item = &inReader.getItemById(17329259);
+	}
+	cout << item->getId() << " -- "
+			<< item->getStatementGroups()[0].getTargets().size() << "--"
+			<< item->getStatementGroups()[1].getPropertyId() << "--"
+			<< item->getStatementGroups()[0].getTargets()[0] << endl;
+
+	cout << "Complete PartedIndexReader Test" << endl << endl;
+}
+
 void testAStarSearch() {
 	cout << "Start Testing - AStarSearch" << endl;
-	IndexReader outReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/edgeIndex.txt");
-	IndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgeIndex.txt");
+	PartedIndexReader outReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/outgoingEdgesIndex");
+	PartedIndexReader inReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndex");
+	AStarSearch ass(inReader, outReader);
+//	ass.search(22101573);
+	ass.search(22101603);
 
 //	Item& item = inReader.getItemById(13442814);
 
@@ -52,8 +73,9 @@ void testAStarSearch() {
 
 int main() {
 	cout << "Start Testing" << endl << endl;
-	testIndexReader();
+//	testIndexReader();
 	testAStarSearch();
+//	testPartedIndexReader();
 	cout << "Ende" << endl;
 	return 0;
 }

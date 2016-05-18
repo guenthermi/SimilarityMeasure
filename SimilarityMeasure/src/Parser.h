@@ -23,8 +23,9 @@ using namespace std;
 class Parser {
 public:
 	Parser();
-	Item parseItem(string line);
-	int* parsePropertyCount(string line);
+	Item parseItem(string& line);
+	Item parsePureItem(int id, string& line);
+	int* parsePropertyCount(string& line);
 protected:
 	static void split(string text, char dlm, vector<string>& result) {
 		string::const_iterator start = text.begin();
@@ -42,7 +43,6 @@ protected:
 	static void splitInts(string text, char dlm, vector<int>& result) {
 		vector<string> splits;
 		split(text, dlm, splits);
-//		cout << "1.1" << endl;
 		for (size_t i = 0; i < splits.size(); i++) {
 			result.push_back(atoi(splits[i].c_str()));
 		}
@@ -53,7 +53,7 @@ Parser::Parser() {
 
 }
 
-Item Parser::parseItem(string line) {
+Item Parser::parseItem(string& line) {
 	vector<string> splits;
 	split(line, ';', splits);
 	int itemId = atoi(splits[0].c_str());
@@ -72,7 +72,25 @@ Item Parser::parseItem(string line) {
 	return item;
 }
 
-int* Parser::parsePropertyCount(string line){
+Item Parser::parsePureItem(int id, string& line){
+	vector<string> splits;
+	split(line, ';', splits);
+	Item item(id);
+	for (size_t i = 0; i < splits.size(); i++){
+		vector<int> stmtgr;
+		splitInts(splits[i], ',', stmtgr);
+		StatementGroup statementGroup(stmtgr[0]);
+		size_t j;
+		for (j=1; j<stmtgr.size(); j++){
+			statementGroup.pushTarget(stmtgr[j]);
+		}
+		item.pushStmtGr(statementGroup);
+	}
+
+	return item;
+}
+
+int* Parser::parsePropertyCount(string& line){
 	vector<int> splits;
 	splitInts(line, ':', splits);
 	int array[2];
