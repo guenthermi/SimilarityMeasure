@@ -21,6 +21,7 @@ class AStarSearch {
 public:
 
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
+	~AStarSearch();
 
 	void updateTopK(int* update);
 	void updateTopK(int itemId, int value);
@@ -57,6 +58,13 @@ AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 	top[1] = 0;
 }
 
+AStarSearch::~AStarSearch(){
+	for (int i=0; i<topK.size(); i++){
+		delete[] topK[i];
+	}
+	delete[] top;
+}
+
 void AStarSearch::updateTopK(int* update) {
 	if (update[1] > top[1]) {
 		top = update;
@@ -76,6 +84,9 @@ void AStarSearch::updateTopK(int itemId, int value) {
 void AStarSearch::updateTopK(vector<int*>* candidates) {
 	for (int i = 0; i < candidates->size(); i++) {
 		topK.push_back((*candidates)[i]);
+		if ((*candidates)[i][1] > top[1]){
+			top = (*candidates)[i];
+		}
 	}
 }
 
@@ -130,6 +141,7 @@ void AStarSearch::search(int itemId) {
 			itemTrail.pop_back();
 		}
 	}
+	cout << top[0] << ": " << top[1] << endl;
 }
 
 /**
@@ -144,6 +156,7 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		vector<int> itemTrail, Direction direction, int weight) {
 //	cout << "Call hasSimilarity propertyTrail " << propertyTrail[0]
 //			<< " itemTrail " << itemTrail[0] << endl;
+	cout << "Call hasSimilarity " << itemTrail[0] << "W: " << weight << endl;
 	vector<int*>* result = new vector<int*>();
 	int weight2 = 0;
 	if (propertyTrail.empty()) {

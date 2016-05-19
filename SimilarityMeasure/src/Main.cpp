@@ -48,9 +48,10 @@ void testPartedIndexReader() {
 	for (int i=0; i<100; i++){
 		item = &inReader.getItemById(17329259);
 	}
+	cout << item->getDegree() << endl;
 	cout << item->getId() << " -- "
 			<< item->getStatementGroups()[0].getTargets().size() << "--"
-			<< item->getStatementGroups()[1].getPropertyId() << "--"
+			<< item->getStatementGroups()[0].getPropertyId() << "--"
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
 	cout << "Complete PartedIndexReader Test" << endl << endl;

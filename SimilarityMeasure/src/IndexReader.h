@@ -27,6 +27,8 @@ public:
 	static const int cacheFreeRate = 100000;
 
 	IndexReader(string indexFile);
+	~IndexReader();
+
 	virtual void jumpToBegin();
 	virtual bool hasNextItem();
 	virtual bool getNextItem(Item& item, bool caching = false);
@@ -69,6 +71,13 @@ IndexReader::IndexReader(string indexFile) {
 	fileUsed = 0;
 	nullItem = Item(0);
 
+}
+
+IndexReader::~IndexReader(){
+	cout << "Call" << endl;
+	for (map<int, CacheLine*>::iterator it = cache.begin(); it != cache.end(); it++){
+		delete it->second;
+	}
 }
 
 void IndexReader::jumpToBegin() {
