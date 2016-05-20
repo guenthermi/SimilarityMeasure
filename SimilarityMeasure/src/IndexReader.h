@@ -74,7 +74,6 @@ IndexReader::IndexReader(string indexFile) {
 }
 
 IndexReader::~IndexReader(){
-	cout << "Call" << endl;
 	for (map<int, CacheLine*>::iterator it = cache.begin(); it != cache.end(); it++){
 		delete it->second;
 	}

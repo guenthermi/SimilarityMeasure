@@ -15,20 +15,22 @@
 #include "datamodel/StatementGroup.h"
 
 #include <vector>
+#include <map>
 #include <algorithm>
 
 class AStarSearch {
 public:
 
+	static const double expansionWeight = 0.5;
+
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
 	~AStarSearch();
 
-	void updateTopK(int* update);
-	void updateTopK(int itemId, int value);
 	void updateTopK(vector<int*>* candidates);
 	void pruneTopK(int min);
-	vector<int*>& getTopK();
-	int* getBestMatch();
+	map<int, double>& getTopK();
+	int getBestMatch();
+	double getBestMatchValue();
 	void search(int itemId);
 	vector<int*>* hasSimilarity(vector<int> propertyTrail,
 			vector<int> itemTrail, Direction direction, int weight);
@@ -37,8 +39,9 @@ protected:
 	IndexReader& iReader;
 	IndexReader& oReader;
 	NodeFinder finder;
-	vector<int*> topK;
-	int* top;
+	map<int, double> topK;
+	int topId;
+	double topValue;
 
 	void addItemToResult(vector<int*>* result, int itemId,
 			vector<int>& blacklist, int weight1, int weight2);
@@ -53,62 +56,50 @@ protected:
 
 AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 		iReader(inReader), oReader(outReader), finder(inReader, outReader) {
-	top = new int[2];
-	top[0] = 0;
-	top[1] = 0;
+	topId = 0;
+	topValue = 0;
 }
 
-AStarSearch::~AStarSearch(){
-	for (int i=0; i<topK.size(); i++){
-		delete[] topK[i];
-	}
-	delete[] top;
-}
-
-void AStarSearch::updateTopK(int* update) {
-	if (update[1] > top[1]) {
-		top = update;
-	}
-}
-
-void AStarSearch::updateTopK(int itemId, int value) {
-	int* elem = new int[2];
-	elem[0] = itemId;
-	elem[1] = value;
-	topK.push_back(elem);
-	if (top[1] < elem[1]) {
-		top = elem;
-	}
+AStarSearch::~AStarSearch() {
 }
 
 void AStarSearch::updateTopK(vector<int*>* candidates) {
 	for (int i = 0; i < candidates->size(); i++) {
-		topK.push_back((*candidates)[i]);
-		if ((*candidates)[i][1] > top[1]){
-			top = (*candidates)[i];
+		double& value = topK[(*candidates)[i][0]];
+		if (value == 0) {
+			value = (double) 1 / (*candidates)[i][1];
+		} else {
+			value += (double) 1 / (*candidates)[i][1];
+		}
+		if (value > topValue) {
+			topValue = value;
+			topId = (*candidates)[i][0];
 		}
 	}
 }
 
 void AStarSearch::pruneTopK(int min) {
-	sort(topK.begin(), topK.end(), cmp);
-	for (int i = 0; i < topK.size(); i++) {
-		if (topK[i][1] < min) {
-
+	vector<int> ids;
+	for (map<int, double>::iterator ii = topK.begin(); ii != topK.end(); ii++) {
+		if (ii->second < min) {
+			ids.push_back(ii->first);
 		}
 	}
-	while ((topK.back()[1] < min) && (topK.size() > 0)) {
-		delete[] topK.back();
-		topK.pop_back();
+	for (int i = 0; i < ids.size(); i++) {
+		topK.erase(ids[i]);
 	}
 }
 
-vector<int*>& AStarSearch::getTopK() {
+map<int, double>& AStarSearch::getTopK() {
 	return topK;
 }
 
-int* AStarSearch::getBestMatch() {
-	return top;
+int AStarSearch::getBestMatch() {
+	return topId;
+}
+
+double AStarSearch::getBestMatchValue() {
+	return topValue;
 }
 
 void AStarSearch::search(int itemId) {
@@ -120,6 +111,7 @@ void AStarSearch::search(int itemId) {
 	vector<StatementGroup>& stmtGrs = out.getStatementGroups();
 	vector<int> itemTrail;
 	itemTrail.push_back(itemId);
+
 	for (int i = 0; i < stmtGrs.size(); i++) {
 		int pId = stmtGrs[i].getPropertyId();
 		vector<int>& targets = stmtGrs[i].getTargets();
@@ -128,7 +120,7 @@ void AStarSearch::search(int itemId) {
 		for (int j = 0; j < targets.size(); j++) {
 			itemTrail.push_back(targets[j]);
 			vector<int*>* candidates = hasSimilarity(propertyTrail, itemTrail,
-					incomming, outDegree);
+					incomming, outDegree / (1-expansionWeight));
 			cout << "candidates size: " << candidates->size() << endl;
 			if (candidates->size() > 1) {
 				cout << (*candidates)[0][0] << endl;
@@ -137,11 +129,12 @@ void AStarSearch::search(int itemId) {
 				cout << *candidates[0][0] << endl;
 			}
 			updateTopK(candidates);
+			clearVector(*candidates);
 			delete candidates;
 			itemTrail.pop_back();
 		}
 	}
-	cout << top[0] << ": " << top[1] << endl;
+	cout << topId << ": " << topValue << endl;
 }
 
 /**
@@ -158,17 +151,20 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 //			<< " itemTrail " << itemTrail[0] << endl;
 	cout << "Call hasSimilarity " << itemTrail[0] << "W: " << weight << endl;
 	vector<int*>* result = new vector<int*>();
-	int weight2 = 0;
+	int weight2 = 1;
 	if (propertyTrail.empty()) {
 		return result;
 	}
 
 	IndexReader* reader;
+	IndexReader* invReader;
 	Direction direct = direction;
 	if (direct == outgoing) {
 		reader = &oReader;
+		invReader = &iReader;
 	} else {
 		reader = &iReader;
+		invReader = &oReader;
 	}
 
 	int itemId = itemTrail.back();
@@ -221,6 +217,7 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 			degreeTrail.pop_back();
 			searchTrailPositions.pop_back();
 			searchTrailTargets.pop_back();
+			cout << "go to upper layer" << endl;
 		}
 
 	}
@@ -260,8 +257,8 @@ void AStarSearch::extendTrails(vector<int>& searchTrailPositions,
 	for (int i = 0; i < stmtGrs.size(); i++) {
 		if (stmtGrs[i].getPropertyId() == propertyId) {
 			searchTrailTargets.push_back(&stmtGrs[i].getTargets()); // evt. & weglassen
-			weight *= item.getDegree();
-			degreeTrail.push_back(item.getDegree());
+//			cout << "ItemId: " << item.getId() << "propertyId: " << propertyId << ": Degree: " << item.getDegree() << endl;
+			degreeTrail.push_back(stmtGrs[i].getTargets().size() - 1);
 			weight *= degreeTrail.back();
 		}
 	}

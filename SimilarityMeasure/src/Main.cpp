@@ -13,6 +13,7 @@
 #include "PropertyStatistics.h"
 #include "AStarSearch.h"
 #include "PartedIndexReader.h"
+#include "WebApi.h"
 
 #include <iostream>
 
@@ -65,7 +66,14 @@ void testAStarSearch() {
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndex");
 	AStarSearch ass(inReader, outReader);
 //	ass.search(22101573);
-	ass.search(22101603);
+
+//	ass.search(22101603);
+
+//	ass.search(251657);
+
+//	ass.search(421);
+
+	ass.search(2001293);
 
 //	Item& item = inReader.getItemById(13442814);
 
