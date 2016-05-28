@@ -14,6 +14,7 @@
 #include "AStarSearch.h"
 #include "PartedIndexReader.h"
 #include "WebApi.h"
+#include "Blacklist.h";
 
 #include <iostream>
 
@@ -73,7 +74,11 @@ void testAStarSearch() {
 
 //	ass.search(421);
 
-	ass.search(2001293);
+//	ass.search(2001293); // -> sehr langsam?!
+
+//	ass.search(567);
+
+	ass.search(43361);
 
 //	Item& item = inReader.getItemById(13442814);
 
