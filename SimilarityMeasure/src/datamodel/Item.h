@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -27,9 +28,12 @@ public:
 	int getId();
 	int getDegree();
 	string toString();
+	void sortStmtGrsBySize();
 protected:
 	int qId;
 	vector<StatementGroup> stmtGrs;
+
+	static bool cmp(StatementGroup& a, StatementGroup& b);
 };
 
 Item::Item() {
@@ -76,15 +80,15 @@ int Item::getDegree() {
 	return result;
 }
 
-string Item::toString(){
+string Item::toString() {
 	stringstream ss;
 	ss << "Q" << qId << ": " << endl;
 
-	for (int i=0; i<stmtGrs.size(); i++){
+	for (int i = 0; i < stmtGrs.size(); i++) {
 		ss << "\tP" << stmtGrs[i].getPropertyId() << ": ";
-		for (int j=0; j<stmtGrs[i].getTargets().size(); j++){
+		for (int j = 0; j < stmtGrs[i].getTargets().size(); j++) {
 			ss << "Q" << stmtGrs[i].getTargets()[j];
-			if (j < (stmtGrs[i].getTargets().size() - 1)){
+			if (j < (stmtGrs[i].getTargets().size() - 1)) {
 				ss << ", ";
 			}
 		}
@@ -92,6 +96,14 @@ string Item::toString(){
 	}
 	ss << endl;
 	return ss.str();
+}
+
+void Item::sortStmtGrsBySize() {
+	sort(stmtGrs.begin(), stmtGrs.end(), cmp);
+}
+
+bool Item::cmp(StatementGroup& a, StatementGroup& b) {
+	return (a.getTargets().size() < b.getTargets().size());
 }
 
 #endif /* ITEM_H_ */

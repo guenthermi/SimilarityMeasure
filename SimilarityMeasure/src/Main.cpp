@@ -78,7 +78,9 @@ void testAStarSearch() {
 
 //	ass.search(567);
 
-	ass.search(43361);
+	ass.search(183);
+
+//	ass.search(8337);
 
 //	Item& item = inReader.getItemById(13442814);
 

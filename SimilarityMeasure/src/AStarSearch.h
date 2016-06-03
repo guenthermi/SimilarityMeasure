@@ -14,6 +14,8 @@
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
 #include "Blacklist.h"
+#include "State.h"
+#include "Initial.h"
 
 #include <vector>
 #include <map>
@@ -31,6 +33,7 @@ public:
 	int getBestMatch();
 	double getBestMatchValue();
 	void search(int itemId);
+	void processInitial(Initial* initial, State& state);
 	vector<int*>* hasSimilarity(vector<int> propertyTrail,
 			vector<int> itemTrail, Direction direction, int weight,
 			Blacklist& blacklist);
@@ -105,37 +108,80 @@ double AStarSearch::getBestMatchValue() {
 void AStarSearch::search(int itemId) {
 	Item& out = oReader.getItemById(itemId);
 	Item& in = iReader.getItemById(itemId);
-	//int inDegree = in.getDegree();
+
+	int inDegree = in.getDegree();
 	int outDegree = out.getDegree();
-	vector<StatementGroup>& stmtGrs = out.getStatementGroups();
-	vector<int> itemTrail;
-	itemTrail.push_back(itemId);
 
-	for (size_t i = 0; i < stmtGrs.size(); i++) {
-		int pId = stmtGrs[i].getPropertyId();
-		vector<int>& targets = stmtGrs[i].getTargets();
-		vector<int> propertyTrail;
-		propertyTrail.push_back(pId);
-		for (size_t j = 0; j < targets.size(); j++) {
-			itemTrail.push_back(targets[j]);
-			Blacklist blacklist;
+	Initial* initialIn = new Initial(in, NULL,
+			(double) inDegree / (inDegree + outDegree), incomming);
+	Initial* initialOut = new Initial(out, NULL,
+			(double) outDegree / (inDegree + outDegree), outgoing);
 
-			vector<int*>* candidates = hasSimilarity(propertyTrail, itemTrail,
-					incomming, outDegree, blacklist);
-			cout << "candidates size: " << candidates->size() << endl;
-			if (candidates->size() > 1) {
-				cout << (*candidates)[0][0] << endl;
+	State state;
+	state.addInitial(initialIn);
+	state.addInitial(initialOut);
+
+	int maxIteration = 100;
+	int iteration = 0;
+	while (iteration <= maxIteration) {
+		iteration++;
+		Initial* init = state.getBestChoice();
+		processInitial(init, state);
+	}
+
+	vector<StatementGroup>& stmtGrsOut = out.getStatementGroups();
+	vector<StatementGroup>& stmtGrsIn = in.getStatementGroups();
+
+	for (int d = 0; d < 2; d++) {
+		vector<int> itemTrail;
+		itemTrail.push_back(itemId);
+		vector<StatementGroup>* stmtGrs;
+		if (d == 0) {
+			stmtGrs = &stmtGrsOut;
+		} else {
+			stmtGrs = &stmtGrsIn;
+		}
+		for (size_t i = 0; i < stmtGrs->size(); i++) {
+			int pId = (*stmtGrs)[i].getPropertyId();
+			vector<int>& targets = (*stmtGrs)[i].getTargets();
+			vector<int> propertyTrail;
+			propertyTrail.push_back(pId);
+			for (size_t j = 0; j < targets.size(); j++) {
+				itemTrail.push_back(targets[j]);
+				Blacklist blacklist; // TODO: save blacklists to reuse them in the next layer
+				vector<int*>* candidates = hasSimilarity(propertyTrail,
+						itemTrail, d ? outgoing : incomming,
+						outDegree + inDegree, blacklist);
+				cout << "candidates size: " << candidates->size() << endl;
+				if (candidates->size() > 0) {
+					cout << (*candidates)[0][0] << endl;
+				}
+				updateTopK(candidates);
+				clearVector(*candidates);
+				delete candidates;
+				itemTrail.pop_back();
 			}
-			if (candidates->size() == 1) {
-				cout << *candidates[0][0] << endl;
-			}
-			updateTopK(candidates);
-			clearVector(*candidates);
-			delete candidates;
-			itemTrail.pop_back();
 		}
 	}
 	cout << topId << ": " << topValue << endl;
+}
+
+void AStarSearch::processInitial(Initial* initial, State& state) {
+	StatementGroup& stmtGr = initial->getNextStmtGr();
+	int pId = stmtGr.getPropertyId();
+	vector<int>& targets = stmtGr.getTargets();
+	for (size_t i = 0; i < targets.size(); i++) {
+		vector<int> propertyTrail = initial->getPropertyTrail();
+		vector<int> itemTrail = initial->getItemTrail();
+		propertyTrail.push_back(pId);
+		Blacklist* bl = new Blacklist();
+		bl->setNext(initial->getBlacklist());
+		int op; // TODO compute op
+		vector<int*>* cnadidates = hasSimilarity(propertyTrail, itemTrail,
+				(initial->getDirection() == incomming) ? outgoing : incomming,
+				op, *initial->getBlacklist());
+	}
+
 }
 
 /**
@@ -149,8 +195,9 @@ void AStarSearch::search(int itemId) {
 vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		vector<int> itemTrail, Direction direction, int weight,
 		Blacklist& blacklist) {
-	cout << "Call hasSimilarity " << itemTrail[0] << "W: " << weight
-			<< " Property" << propertyTrail[0] << endl;
+	cout << "Call hasSimilarity from " << itemTrail[0] << " with "
+			<< itemTrail[1] << "W: " << weight << " Property"
+			<< propertyTrail[0] << endl;
 	vector<int*>* result = new vector<int*>();
 	if (propertyTrail.empty()) {
 		return result;
@@ -209,8 +256,7 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 						degreeTrail, item,
 						propertyTrail[propertyTrailPosition]);
 			} else {
-				addItemToResult(result, id, itemTrail, weight,
-						&blacklist);
+				addItemToResult(result, id, itemTrail, weight, &blacklist);
 			}
 		} else {
 			// go to upper layer
