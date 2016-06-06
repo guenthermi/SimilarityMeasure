@@ -15,7 +15,7 @@
 
 class Initial {
 public:
-	Initial(Item& item, Blacklist* bl, double baseOP, Direction d);
+	Initial(Item& item, Blacklist* bl, double baseOP, Direction d, vector<int> itemTrail, vector<int> propertyTrail);
 	void clearState();
 	bool isProcessed();
 	StatementGroup& getNextStmtGr();
@@ -33,31 +33,32 @@ public:
 protected:
 
 	// initial values
-	int baseOP;
+	double baseOP;
 	Direction direction;
-	Blacklist& blacklist;
+	Blacklist* blacklist;
 	Item item;
 
 	// computed values
-	StatementGroup& next;
 	int lowest;
 	vector<int> propertyTrail;
 	vector<int> itemTrail;
 
 };
 
-Initial::Initial(Item& item, Blacklist* bl, double baseOP, Direction d) :
+Initial::Initial(Item& item, Blacklist* bl, double baseOP, Direction d, vector<int> itemTrail, vector<int> propertyTrail) :
 		item(item) {
 	this->baseOP = baseOP;
 	this->direction = d;
 	this->blacklist = bl;
+	this->itemTrail = itemTrail;
+	this->propertyTrail = propertyTrail;
 	itemTrail.push_back(item.getId());
 	clearState();
 }
 
 void Initial::clearState() {
 	item.sortStmtGrsBySize();
-	int lowest = 0;
+	lowest = 0;
 }
 
 bool Initial::isProcessed() {
@@ -70,7 +71,7 @@ StatementGroup& Initial::getNextStmtGr() {
 }
 
 int Initial::getLowesetDegree() {
-	if (isProcessed) {
+	if (isProcessed()) {
 		return -1;
 	}
 	return item.getStatementGroups()[lowest].getTargets().size();

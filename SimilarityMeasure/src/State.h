@@ -52,8 +52,8 @@ bool State::isComplete(){
 Initial* State::getBestChoice(){
 	double highest = -1;
 	Initial* result = NULL;
-	for (size_t i; i<initials.size(); i++){
-		double op = initials[i]->baseOP / initials[i]->getLowesetDegree();
+	for (size_t i = 0; i<initials.size(); i++){
+		double op = initials[i]->getBaseOP() / initials[i]->getLowesetDegree();
 		if ((op > 0) && (highest < op)){
 			result = initials[i];
 			highest = op;

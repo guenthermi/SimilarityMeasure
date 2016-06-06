@@ -27,15 +27,15 @@ public:
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
 	~AStarSearch();
 
-	void updateTopK(vector<int*>* candidates);
+	void updateTopK(map<int, double>* candidates);
 	void pruneTopK(int min);
 	map<int, double>& getTopK();
 	int getBestMatch();
 	double getBestMatchValue();
 	void search(int itemId);
 	void processInitial(Initial* initial, State& state);
-	vector<int*>* hasSimilarity(vector<int> propertyTrail,
-			vector<int> itemTrail, Direction direction, int weight,
+	map<int, double>* hasSimilarity(vector<int> propertyTrail,
+			vector<int> itemTrail, Direction direction, double weight,
 			Blacklist& blacklist);
 
 protected:
@@ -46,14 +46,23 @@ protected:
 	int topId;
 	double topValue;
 
-	void addItemToResult(vector<int*>* result, int itemId,
-			vector<int>& itemTrail, int weight, Blacklist* blacklist);
+	void addItemToResult(map<int, double>* result, int itemId,
+			vector<int>& itemTrail, double weight, Blacklist* blacklist, int& inpenalty);
 	void extendTrails(vector<int>& searchTrailPositions,
-			vector<vector<int>*>& searchTrailTargets, vector<int>& degreeTrail,
-			Item& item, int propertyId);
+			vector<vector<int>*>& searchTrailTargets, Item& item,
+			int propertyId);
 	IndexReader* alterReaderDirection(Direction& direction);
 	template<typename T> void clearVector(vector<T*>& v);
 	static bool cmp(const int* a, const int* b);
+
+	// debug
+	void printTrail(vector<int>& trail) {
+		cout << "[ ";
+		for (size_t i = 0; i < trail.size(); i++) {
+			cout << trail[i] << " ";
+		}
+		cout << "]" << endl;
+	}
 
 };
 
@@ -66,17 +75,14 @@ AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 AStarSearch::~AStarSearch() {
 }
 
-void AStarSearch::updateTopK(vector<int*>* candidates) {
-	for (size_t i = 0; i < candidates->size(); i++) {
-		double& value = topK[(*candidates)[i][0]];
-		if (value == 0) {
-			value = (double) 1 / (*candidates)[i][1];
-		} else {
-			value += (double) 1 / (*candidates)[i][1];
-		}
+void AStarSearch::updateTopK(map<int, double>* candidates) {
+	for (map<int, double>::iterator it = candidates->begin();
+			it != candidates->end(); it++) {
+		double& value = topK[it->first];
+		value += it->second;
 		if (value > topValue) {
 			topValue = value;
-			topId = (*candidates)[i][0];
+			topId = it->first;
 		}
 	}
 }
@@ -113,56 +119,28 @@ void AStarSearch::search(int itemId) {
 	int outDegree = out.getDegree();
 
 	Initial* initialIn = new Initial(in, NULL,
-			(double) inDegree / (inDegree + outDegree), incomming);
+			(double) inDegree / (inDegree + outDegree), incomming,
+			vector<int>(), vector<int>());
 	Initial* initialOut = new Initial(out, NULL,
-			(double) outDegree / (inDegree + outDegree), outgoing);
+			(double) outDegree / (inDegree + outDegree), outgoing,
+			vector<int>(), vector<int>());
+	initialIn->addToItemTrail(itemId);
+	initialOut->addToItemTrail(itemId);
 
 	State state;
 	state.addInitial(initialIn);
 	state.addInitial(initialOut);
 
-	int maxIteration = 100;
+	int maxIteration = 10;
 	int iteration = 0;
 	while (iteration <= maxIteration) {
 		iteration++;
+		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
+		cout << "best choise: " << init->getLowesetDegree() << endl;
 		processInitial(init, state);
 	}
 
-	vector<StatementGroup>& stmtGrsOut = out.getStatementGroups();
-	vector<StatementGroup>& stmtGrsIn = in.getStatementGroups();
-
-	for (int d = 0; d < 2; d++) {
-		vector<int> itemTrail;
-		itemTrail.push_back(itemId);
-		vector<StatementGroup>* stmtGrs;
-		if (d == 0) {
-			stmtGrs = &stmtGrsOut;
-		} else {
-			stmtGrs = &stmtGrsIn;
-		}
-		for (size_t i = 0; i < stmtGrs->size(); i++) {
-			int pId = (*stmtGrs)[i].getPropertyId();
-			vector<int>& targets = (*stmtGrs)[i].getTargets();
-			vector<int> propertyTrail;
-			propertyTrail.push_back(pId);
-			for (size_t j = 0; j < targets.size(); j++) {
-				itemTrail.push_back(targets[j]);
-				Blacklist blacklist; // TODO: save blacklists to reuse them in the next layer
-				vector<int*>* candidates = hasSimilarity(propertyTrail,
-						itemTrail, d ? outgoing : incomming,
-						outDegree + inDegree, blacklist);
-				cout << "candidates size: " << candidates->size() << endl;
-				if (candidates->size() > 0) {
-					cout << (*candidates)[0][0] << endl;
-				}
-				updateTopK(candidates);
-				clearVector(*candidates);
-				delete candidates;
-				itemTrail.pop_back();
-			}
-		}
-	}
 	cout << topId << ": " << topValue << endl;
 }
 
@@ -170,16 +148,42 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 	StatementGroup& stmtGr = initial->getNextStmtGr();
 	int pId = stmtGr.getPropertyId();
 	vector<int>& targets = stmtGr.getTargets();
+	vector<int> itemTrail = initial->getItemTrail();
+	vector<int> propertyTrail = initial->getPropertyTrail();
+	int itemDegree = initial->getItem().getDegree();
+	propertyTrail.push_back(pId);
 	for (size_t i = 0; i < targets.size(); i++) {
-		vector<int> propertyTrail = initial->getPropertyTrail();
-		vector<int> itemTrail = initial->getItemTrail();
-		propertyTrail.push_back(pId);
 		Blacklist* bl = new Blacklist();
 		bl->setNext(initial->getBlacklist());
-		int op; // TODO compute op
-		vector<int*>* cnadidates = hasSimilarity(propertyTrail, itemTrail,
+		double op = initial->getBaseOP() * (double) (1.0 / itemDegree);
+		itemTrail.push_back(targets[i]);
+
+		Item* newItem;
+		if (initial->getDirection() == incomming) {
+			newItem = &iReader.getItemById(targets[i]);
+		} else {
+			newItem = &oReader.getItemById(targets[i]);
+		}
+		Initial* newInitial = new Initial(*newItem, bl,
+				initial->getBaseOP() / itemDegree, initial->getDirection(),
+				itemTrail, propertyTrail);
+		state.addInitial(newInitial);
+
+		int inpenalty = 0;
+		map<int, double>* candidates = hasSimilarity(propertyTrail, itemTrail,
 				(initial->getDirection() == incomming) ? outgoing : incomming,
-				op, *initial->getBlacklist());
+				op, *bl);
+		cout << "candidates size: " << candidates->size() << endl;
+		if (candidates->size() > 0) {
+			cout << candidates->begin()->first << endl;
+		}
+		if (candidates->size() > 1) {
+			cout << (++candidates->begin())->first << endl;
+		}
+		updateTopK(candidates);
+
+		delete candidates;
+		itemTrail.pop_back();
 	}
 
 }
@@ -192,16 +196,21 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
  * 	direction		direction of the first reader to use
  * 	weight			holds the inverted weight for the path in the property trail
  */
-vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
-		vector<int> itemTrail, Direction direction, int weight,
+map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
+		vector<int> itemTrail, Direction direction, double weight,
 		Blacklist& blacklist) {
-	cout << "Call hasSimilarity from " << itemTrail[0] << " with "
-			<< itemTrail[1] << "W: " << weight << " Property"
-			<< propertyTrail[0] << endl;
-	vector<int*>* result = new vector<int*>();
+
+	cout << "Call hasSimilarity itemTrail ";
+	printTrail(itemTrail);
+	cout << "W: " << weight << " PropertyTrail ";
+	printTrail(propertyTrail);
+	cout << endl;
+	map<int, double>* result = new map<int, double>();
 	if (propertyTrail.empty()) {
 		return result;
 	}
+
+	int inpenalty;
 
 	IndexReader* reader;
 	IndexReader* invReader;
@@ -218,7 +227,6 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 	vector<vector<int>*> searchTrailTargets;
 	vector<int> searchTrailPositions;
-	vector<int> degreeTrail;
 
 	Item& origin = reader->getItemById(itemId); // the item where the two paths end
 
@@ -226,7 +234,7 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		return result; // null item -> not valid
 	}
 
-	extendTrails(searchTrailPositions, searchTrailTargets, degreeTrail, origin,
+	extendTrails(searchTrailPositions, searchTrailTargets, origin,
 			propertyTrail.back());
 
 	if (searchTrailTargets.size() == 0) {
@@ -249,29 +257,25 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 			int
 			propertyTrailPosition = propertyTrail.size()
-					- searchTrailTargets.size();
-
+					- searchTrailTargets.size() - 1;
 			if (propertyTrail.size() > searchTrailTargets.size()) { // property path is not at the end
-				extendTrails(searchTrailPositions, searchTrailTargets,
-						degreeTrail, item,
+				extendTrails(searchTrailPositions, searchTrailTargets, item,
 						propertyTrail[propertyTrailPosition]);
 			} else {
-				addItemToResult(result, id, itemTrail, weight, &blacklist);
+				addItemToResult(result, id, itemTrail, weight, &blacklist, inpenalty);
 			}
 		} else {
 			// go to upper layer
-			degreeTrail.pop_back();
 			searchTrailPositions.pop_back();
 			searchTrailTargets.pop_back();
 
-			cout << "go to upper layer" << endl;
+//			cout << "go to upper layer" << endl;
 		}
-
 	}
-
 	// multiply in-penalty
-	for (size_t i = 0; i < result->size(); i++) {
-		(*result)[i][1] *= result->size();
+	for (map<int, double>::iterator it = result->begin(); it != result->end();
+			it++) {
+		it->second *= 1.0 / inpenalty;
 	}
 
 	return result;
@@ -281,8 +285,8 @@ vector<int*>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 /**
  * Adds an item and its weight to the result list if the proposed item is not in the blacklist.
  */
-void AStarSearch::addItemToResult(vector<int*>* result, int itemId,
-		vector<int>& itemTrail, int weight, Blacklist* blacklist) {
+void AStarSearch::addItemToResult(map<int, double>* result, int itemId,
+		vector<int>& itemTrail, double weight, Blacklist* blacklist, int& inpenalty) {
 
 	// check item trail
 	bool inItemTrail = false;
@@ -291,6 +295,8 @@ void AStarSearch::addItemToResult(vector<int*>* result, int itemId,
 			return; // item is in item trail -> do not add
 		}
 	}
+
+	inpenalty++;
 
 	// check blacklist
 	if (blacklist->hasItem(itemId)) {
@@ -301,23 +307,16 @@ void AStarSearch::addItemToResult(vector<int*>* result, int itemId,
 
 	// add item if not in item trail or blacklist
 	if (!inItemTrail) {
-		int* elem = new int[2];
-		elem[0] = itemId;
-		elem[1] = weight;
-		result->push_back(elem);
+		(*result)[itemId] = weight;
 	}
-
 }
 
 void AStarSearch::extendTrails(vector<int>& searchTrailPositions,
-		vector<vector<int>*>& searchTrailTargets, vector<int>& degreeTrail,
-		Item& item, int propertyId) {
+		vector<vector<int>*>& searchTrailTargets, Item& item, int propertyId) {
 	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
 	for (size_t i = 0; i < stmtGrs.size(); i++) {
 		if (stmtGrs[i].getPropertyId() == propertyId) {
 			searchTrailTargets.push_back(&stmtGrs[i].getTargets()); // evt. & weglassen
-//			cout << "ItemId: " << item.getId() << "propertyId: " << propertyId << ": Degree: " << item.getDegree() << endl;
-			degreeTrail.push_back(stmtGrs[i].getTargets().size() - 1);
 		}
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element

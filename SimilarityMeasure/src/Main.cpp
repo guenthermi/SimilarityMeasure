@@ -68,7 +68,7 @@ void testAStarSearch() {
 	AStarSearch ass(inReader, outReader);
 //	ass.search(22101573);
 
-//	ass.search(22101603);
+	ass.search(22101603);
 
 //	ass.search(251657);
 
@@ -78,7 +78,7 @@ void testAStarSearch() {
 
 //	ass.search(567);
 
-	ass.search(183);
+//	ass.search(183);
 
 //	ass.search(8337);
 
