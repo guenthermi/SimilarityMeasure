@@ -96,6 +96,7 @@ bool IndexReader::getNextItem(Item& item, bool caching) {
 			return false;
 		}
 		item = parser.parseItem(line);
+//		item.sortStmtGrsBySize();
 		if (caching) {
 			pushToCache(item);
 		}
@@ -138,6 +139,7 @@ Item& IndexReader::getItemById(int id) {
 		string line;
 		getline(stream, line);
 		Item item = parser.parseItem(line);
+//		item.sortStmtGrsBySize();
 		if (item.getId() == id) {
 			pushToCache(item);
 			return cache[item.getId()]->entry;

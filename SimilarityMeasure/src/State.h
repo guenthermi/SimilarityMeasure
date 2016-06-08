@@ -10,7 +10,7 @@
 
 #include "Initial.h"
 
-#include<vector>
+#include<set>
 
 using namespace std;
 
@@ -23,7 +23,7 @@ public:
 	Initial* getBestChoice();
 
 protected:
-	vector<Initial*> initials;
+	set<Initial*> initials;
 	void freeInitials();
 };
 
@@ -35,36 +35,46 @@ State::~State(){
 }
 
 void State::addInitial(Initial* initial){
-	initials.push_back(initial);
+	initials.insert(initial);
 	if (!initial->isProcessed()){
 	}
 }
 
 bool State::isComplete(){
-	for (size_t i; i < initials.size(); i++){
-		if (initials[i]->isProcessed() == false){
-			return false;
+	set<Initial*> completed;
+	bool result = true;
+	for (set<Initial*>::iterator it = initials.begin(); it != initials.end(); it++){
+		if ((*it)->isProcessed() == false){
+			completed.insert(*it);
+		}else{
+			result = false;
+			break;
 		}
 	}
-	return true;
+	for (set<Initial*>::iterator it = completed.begin(); it != completed.end(); it++){
+		initials.erase(*it);
+	}
+	return result;
 }
 
 Initial* State::getBestChoice(){
 	double highest = -1;
 	Initial* result = NULL;
-	for (size_t i = 0; i<initials.size(); i++){
-		double op = initials[i]->getBaseOP() / initials[i]->getLowesetDegree();
-		if ((op > 0) && (highest < op)){
-			result = initials[i];
-			highest = op;
+	for (set<Initial*>::iterator it = initials.begin(); it != initials.end(); it++){
+		if (!(*it)->isProcessed()){
+			double op = (*it)->getBaseOP() / (*it)->getItemDegree();
+			if ((op > 0) && (highest < op)){
+				result = *it;
+				highest = op;
+			}
 		}
 	}
 	return result;
 }
 
 void State::freeInitials(){
-	for (size_t i; i<initials.size(); i++){
-		delete initials[i];
+	for (set<Initial*>::iterator it = initials.begin(); it != initials.end(); it++){
+		delete *it;
 	}
 }
 

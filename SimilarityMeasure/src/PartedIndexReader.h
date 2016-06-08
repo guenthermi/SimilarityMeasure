@@ -77,6 +77,7 @@ bool PartedIndexReader::getNextItem(Item& item, bool caching) {
 	}
 
 	item = nextItem;
+//	item.sortStmtGrsBySize();
 
 	if (item.getId() == 0) {
 		return false;
@@ -117,6 +118,7 @@ Item& PartedIndexReader::getItemById(int id) {
 		getline(dataFile, line);
 		dataFile.seekg(0, ios_base::end);
 		Item item = parser.parsePureItem(id, line);
+//		item.sortStmtGrsBySize();
 		pushToCache(item);
 		return cache[item.getId()]->entry;
 	} else {

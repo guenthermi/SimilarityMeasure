@@ -47,7 +47,8 @@ protected:
 	double topValue;
 
 	void addItemToResult(map<int, double>* result, int itemId,
-			vector<int>& itemTrail, double weight, Blacklist* blacklist, int& inpenalty);
+			vector<int>& itemTrail, double weight, Blacklist* blacklist,
+			int& inpenalty);
 	void extendTrails(vector<int>& searchTrailPositions,
 			vector<vector<int>*>& searchTrailTargets, Item& item,
 			int propertyId);
@@ -118,12 +119,12 @@ void AStarSearch::search(int itemId) {
 	int inDegree = in.getDegree();
 	int outDegree = out.getDegree();
 
-	Initial* initialIn = new Initial(in, NULL,
+	Initial* initialIn = new Initial(iReader, itemId, NULL,
 			(double) inDegree / (inDegree + outDegree), incomming,
-			vector<int>(), vector<int>());
-	Initial* initialOut = new Initial(out, NULL,
+			vector<int>(), vector<int>(), &in);
+	Initial* initialOut = new Initial(oReader, itemId, NULL,
 			(double) outDegree / (inDegree + outDegree), outgoing,
-			vector<int>(), vector<int>());
+			vector<int>(), vector<int>(), &out);
 	initialIn->addToItemTrail(itemId);
 	initialOut->addToItemTrail(itemId);
 
@@ -137,7 +138,7 @@ void AStarSearch::search(int itemId) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
-		cout << "best choise: " << init->getLowesetDegree() << endl;
+		cout << "best choise: " << init->getItemDegree() << endl;
 		processInitial(init, state);
 	}
 
@@ -150,23 +151,27 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 	vector<int>& targets = stmtGr.getTargets();
 	vector<int> itemTrail = initial->getItemTrail();
 	vector<int> propertyTrail = initial->getPropertyTrail();
-	int itemDegree = initial->getItem().getDegree();
+	int itemDegree = initial->getItemDegree();
 	propertyTrail.push_back(pId);
 	for (size_t i = 0; i < targets.size(); i++) {
+		cout << "get here " << targets.size() << endl;
 		Blacklist* bl = new Blacklist();
 		bl->setNext(initial->getBlacklist());
 		double op = initial->getBaseOP() * (double) (1.0 / itemDegree);
 		itemTrail.push_back(targets[i]);
 
 		Item* newItem;
+		IndexReader* initialReader;
 		if (initial->getDirection() == incomming) {
+			initialReader = &iReader;
 			newItem = &iReader.getItemById(targets[i]);
 		} else {
+			initialReader = &oReader;
 			newItem = &oReader.getItemById(targets[i]);
 		}
-		Initial* newInitial = new Initial(*newItem, bl,
+		Initial* newInitial = new Initial(*initialReader, newItem->getId(), bl,
 				initial->getBaseOP() / itemDegree, initial->getDirection(),
-				itemTrail, propertyTrail);
+				itemTrail, propertyTrail, newItem);
 		state.addInitial(newInitial);
 
 		int inpenalty = 0;
@@ -262,7 +267,8 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 				extendTrails(searchTrailPositions, searchTrailTargets, item,
 						propertyTrail[propertyTrailPosition]);
 			} else {
-				addItemToResult(result, id, itemTrail, weight, &blacklist, inpenalty);
+				addItemToResult(result, id, itemTrail, weight, &blacklist,
+						inpenalty);
 			}
 		} else {
 			// go to upper layer
@@ -286,7 +292,8 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
  * Adds an item and its weight to the result list if the proposed item is not in the blacklist.
  */
 void AStarSearch::addItemToResult(map<int, double>* result, int itemId,
-		vector<int>& itemTrail, double weight, Blacklist* blacklist, int& inpenalty) {
+		vector<int>& itemTrail, double weight, Blacklist* blacklist,
+		int& inpenalty) {
 
 	// check item trail
 	bool inItemTrail = false;

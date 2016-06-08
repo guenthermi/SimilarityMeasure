@@ -9,23 +9,28 @@
 #define INITIAL_H_
 
 #include "datamodel/Item.h"
+#include "IndexReader.h"
 #include "Direction.h"
 
 #include <vector>
 
 class Initial {
 public:
-	Initial(Item& item, Blacklist* bl, double baseOP, Direction d, vector<int> itemTrail, vector<int> propertyTrail);
+	Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
+			Direction d, vector<int> itemTrail, vector<int> propertyTrail,
+			Item* item = NULL);
+	~Initial();
 	void clearState();
 	bool isProcessed();
-	StatementGroup& getNextStmtGr();
-	int getLowesetDegree();
+	StatementGroup& getNextStmtGr(Item* item = NULL);
+//	int getLowesetDegree(Item* item = NULL);
+	int getItemDegree();
 	void addToItemTrail(int id);
 	void addToPropertyTrail(int id);
 
 	Direction getDirection();
 	Blacklist* getBlacklist();
-	Item& getItem();
+	int getItemId();
 	double getBaseOP();
 	vector<int>& getItemTrail();
 	vector<int>& getPropertyTrail();
@@ -36,45 +41,71 @@ protected:
 	double baseOP;
 	Direction direction;
 	Blacklist* blacklist;
-	Item item;
+	int itemId;
+
+	IndexReader& reader;
 
 	// computed values
 	int lowest;
+	int size;
+	int degree;
 	vector<int> propertyTrail;
 	vector<int> itemTrail;
 
 };
 
-Initial::Initial(Item& item, Blacklist* bl, double baseOP, Direction d, vector<int> itemTrail, vector<int> propertyTrail) :
-		item(item) {
+Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
+		Direction d, vector<int> itemTrail, vector<int> propertyTrail,
+		Item* item) :
+		reader(reader) {
 	this->baseOP = baseOP;
 	this->direction = d;
 	this->blacklist = bl;
+	this->itemId = itemId;
 	this->itemTrail = itemTrail;
 	this->propertyTrail = propertyTrail;
-	itemTrail.push_back(item.getId());
+	itemTrail.push_back(itemId);
+	if (item == NULL) {
+		item = &reader.getItemById(itemId);
+	}
+	size = item->getStatementGroups().size();
+	degree = item->getDegree();
 	clearState();
 }
 
+Initial::~Initial(){
+	delete blacklist;
+}
+
 void Initial::clearState() {
-	item.sortStmtGrsBySize();
 	lowest = 0;
 }
 
 bool Initial::isProcessed() {
-	return (lowest >= item.getStatementGroups().size());
+	return (lowest >= size);
 }
 
-StatementGroup& Initial::getNextStmtGr() {
-	lowest++;
-	return item.getStatementGroups()[lowest - 1];
-}
-
-int Initial::getLowesetDegree() {
-	if (isProcessed()) {
-		return -1;
+StatementGroup& Initial::getNextStmtGr(Item* item) {
+	if (item == NULL) {
+		item = &reader.getItemById(itemId);
 	}
-	return item.getStatementGroups()[lowest].getTargets().size();
+	lowest++;
+	cout << "read item " << lowest << endl;
+	return item->getStatementGroups()[lowest - 1];
+}
+
+//int Initial::getLowesetDegree(Item* item) {
+//	if (item == NULL){
+//		item = &reader.getItemById(itemId);
+//	}
+//	if (isProcessed(item)) {
+//		return -1;
+//	}
+//	return item->getStatementGroups()[lowest].getTargets().size();
+//}
+
+int Initial::getItemDegree() {
+	return degree;
 }
 
 void Initial::addToItemTrail(int id) {
@@ -91,8 +122,8 @@ Direction Initial::getDirection() {
 Blacklist* Initial::getBlacklist() {
 	return blacklist;
 }
-Item& Initial::getItem() {
-	return item;
+int Initial::getItemId() {
+	return itemId;
 }
 double Initial::getBaseOP() {
 	return baseOP;
