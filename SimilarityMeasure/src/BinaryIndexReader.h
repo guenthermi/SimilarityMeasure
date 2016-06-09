@@ -64,12 +64,11 @@ Item& BinaryIndexReader::getItemById(int id) {
 		cacheUsed++;
 		return line->entry;
 	}
-
 	// item is not in the cache -> read from file
 	file.clear();
-	file.seekg(0, ios_base::beg); // TODO look if this is necessary
+//	file.seekg(0, ios_base::beg); // TODO look if this is necessary
 	dataFile.clear();
-	dataFile.seekg(0, ios_base::beg);
+//	dataFile.seekg(0, ios_base::beg);
 	dataFile.seekg(0, ios_base::end);
 
 	fileUsed++;
@@ -83,7 +82,7 @@ Item& BinaryIndexReader::getItemById(int id) {
 	if (pos != -1) {
 		Item item = parser.parseBinaryItem(id, dataFile);
 //		getline(dataFile, line);
-		dataFile.seekg(0, ios_base::end); // TODO check what this does...
+//		dataFile.seekg(0, ios_base::end); // TODO check what this does...
 
 //		item.sortStmtGrsBySize();
 		pushToCache(item);

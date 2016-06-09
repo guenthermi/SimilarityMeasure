@@ -132,7 +132,7 @@ void AStarSearch::search(int itemId) {
 	state.addInitial(initialIn);
 	state.addInitial(initialOut);
 
-	int maxIteration = 20;
+	int maxIteration = 10;
 	int iteration = 0;
 	while (iteration < maxIteration) {
 		iteration++;
@@ -154,7 +154,6 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 	int itemDegree = initial->getItemDegree();
 	propertyTrail.push_back(pId);
 	for (size_t i = 0; i < targets.size(); i++) {
-		cout << "get here " << targets.size() << endl;
 		Blacklist* bl = new Blacklist();
 		bl->setNext(initial->getBlacklist());
 		double op = initial->getBaseOP() * (double) (1.0 / itemDegree);
@@ -255,7 +254,6 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 			// read next item
 			// TODO care about case that there is no item in the index
 			int id = (*searchTrailTargets.back())[searchTrailPositions.back()];
-			Item& item = reader->getItemById(id);
 
 			// set position in search trail to next element
 			searchTrailPositions.back()++;
@@ -264,6 +262,7 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 			propertyTrailPosition = propertyTrail.size()
 					- searchTrailTargets.size() - 1;
 			if (propertyTrail.size() > searchTrailTargets.size()) { // property path is not at the end
+				Item& item = reader->getItemById(id);
 				extendTrails(searchTrailPositions, searchTrailTargets, item,
 						propertyTrail[propertyTrailPosition]);
 			} else {

@@ -8,8 +8,9 @@
 #ifndef BLACKLIST_H_
 #define BLACKLIST_H_
 
-#include <set>
+#include <unordered_set>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,14 +21,15 @@ public:
 
 	bool hasItem(int id);
 	Blacklist* getNext();
-	set<int>& getItems();
+	unordered_set<int>& getItems();
 	void addItem(int id);
+//	addItems(set<int> ids)
 	void setNext(Blacklist* bl);
 
 protected:
 
 	Blacklist* next;
-	set<int> items;
+	unordered_set<int> items;
 	bool end;
 
 };
@@ -54,7 +56,7 @@ Blacklist* Blacklist::getNext(){
 }
 
 
-set<int>& Blacklist::getItems(){
+unordered_set<int>& Blacklist::getItems(){
 	return items;
 }
 
