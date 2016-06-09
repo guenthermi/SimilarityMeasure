@@ -17,6 +17,7 @@
 #include "stdlib.h"
 #include <iostream>
 #include <algorithm>
+#include <fstream>
 
 using namespace std;
 
@@ -25,6 +26,7 @@ public:
 	Parser();
 	Item parseItem(string& line);
 	Item parsePureItem(int id, string& line);
+	Item parseBinaryItem(int id, ifstream& file);
 	int* parsePropertyCount(string& line);
 protected:
 	static void split(string text, char dlm, vector<string>& result) {
@@ -87,6 +89,26 @@ Item Parser::parsePureItem(int id, string& line){
 		item.pushStmtGr(statementGroup);
 	}
 
+	return item;
+}
+
+Item Parser::parseBinaryItem(int id, ifstream& file){
+	Item item(id);
+	int stmtGrsCount;
+	file.read((char*) &stmtGrsCount, sizeof(stmtGrsCount));
+	for (int i=0; i<stmtGrsCount; i++){
+		int pId;
+		file.read((char*) &pId, sizeof(pId));
+		StatementGroup stmtGr(pId);
+		int size;
+		file.read((char*) &size, sizeof(size));
+		for (int j=0; j< size; j++){
+			int target;
+			file.read((char*) &target, sizeof(target));
+			stmtGr.pushTarget(target, false);
+		}
+		item.pushStmtGr(stmtGr);
+	}
 	return item;
 }
 

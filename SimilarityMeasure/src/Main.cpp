@@ -13,8 +13,9 @@
 #include "PropertyStatistics.h"
 #include "AStarSearch.h"
 #include "PartedIndexReader.h"
+#include "BinaryIndexReader.h"
 #include "WebApi.h"
-#include "Blacklist.h";
+#include "Blacklist.h"
 
 #include <iostream>
 
@@ -59,12 +60,30 @@ void testPartedIndexReader() {
 	cout << "Complete PartedIndexReader Test" << endl << endl;
 }
 
+void testBinaryIndexReader() {
+	cout << "Start Testing - BinaryIndexReader" << endl;
+
+	BinaryIndexReader inReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndexBin");
+	Item* item;
+	for (int i=0; i<1000; i++){
+		item = &inReader.getItemById(i);
+	}
+	cout << item->getDegree() << endl;
+	cout << item->getId() << " -- "
+			<< item->getStatementGroups()[0].getTargets().size() << "--"
+			<< item->getStatementGroups()[0].getPropertyId() << "--"
+			<< item->getStatementGroups()[0].getTargets()[0] << endl;
+
+	cout << "Complete BinaryIndexReader Test" << endl << endl;
+}
+
 void testAStarSearch() {
 	cout << "Start Testing - AStarSearch" << endl;
-	PartedIndexReader outReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/outgoingEdgesIndex");
-	PartedIndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndex");
+	BinaryIndexReader outReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/outgoingEdgesIndexBin");
+	BinaryIndexReader inReader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndexBin");
 	AStarSearch ass(inReader, outReader);
 //	ass.search(22101573);
 
@@ -91,7 +110,7 @@ int main() {
 	cout << "Start Testing" << endl << endl;
 //	testIndexReader();
 	testAStarSearch();
-//	testPartedIndexReader();
+//	testBinaryIndexReader();
 	cout << "Ende" << endl;
 	return 0;
 }

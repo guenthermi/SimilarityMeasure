@@ -132,9 +132,9 @@ void AStarSearch::search(int itemId) {
 	state.addInitial(initialIn);
 	state.addInitial(initialOut);
 
-	int maxIteration = 10;
+	int maxIteration = 20;
 	int iteration = 0;
-	while (iteration <= maxIteration) {
+	while (iteration < maxIteration) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
