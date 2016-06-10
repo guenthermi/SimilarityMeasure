@@ -27,6 +27,7 @@ public:
 	Item parseItem(string& line);
 	Item parsePureItem(int id, string& line);
 	Item parseBinaryItem(int id, ifstream& file);
+	Item parseInMemoryItem(int id, int pos, int* data);
 	int* parsePropertyCount(string& line);
 protected:
 	static void split(string text, char dlm, vector<string>& result) {
@@ -110,6 +111,21 @@ Item Parser::parseBinaryItem(int id, ifstream& file){
 		item.pushStmtGr(stmtGr);
 	}
 	return item;
+}
+
+Item Parser::parseInMemoryItem(int id, int pos, int* data){
+	Item result(id);
+	int stmtGrSize = data[pos++];
+	for (int i=0; i < stmtGrSize; i++){
+		int pId = data[pos++];
+		int size = data[pos++];
+		StatementGroup stmtGr(pId);
+		for (int j=0; j < size; j++){
+			stmtGr.pushTarget(data[pos++], false);
+		}
+		result.pushStmtGr(stmtGr);
+	}
+	return result;
 }
 
 int* Parser::parsePropertyCount(string& line){

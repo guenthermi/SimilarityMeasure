@@ -41,7 +41,7 @@ bool BinaryIndexReader::hasNextItem() {
 	while (filePointer < Index::kItemSize) {
 
 		// read position of item
-		long pos;
+		int pos;
 		file.seekg(filePointer * sizeof(pos), ios_base::beg);
 		file.read((char*) &pos, sizeof(pos));
 
@@ -73,7 +73,7 @@ Item& BinaryIndexReader::getItemById(int id) {
 
 	fileUsed++;
 
-	long pos;
+	int pos;
 	string line;
 	file.seekg(0, ios_base::end);
 	file.seekg(id * sizeof(pos), ios_base::beg);

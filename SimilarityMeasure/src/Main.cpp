@@ -14,6 +14,7 @@
 #include "AStarSearch.h"
 #include "PartedIndexReader.h"
 #include "BinaryIndexReader.h"
+#include "InMemoryIndexReader.h"
 #include "WebApi.h"
 #include "Blacklist.h"
 
@@ -80,9 +81,9 @@ void testBinaryIndexReader() {
 
 void testAStarSearch() {
 	cout << "Start Testing - AStarSearch" << endl;
-	BinaryIndexReader outReader(
+	InMemoryIndexReader outReader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/outgoingEdgesIndexBin");
-	BinaryIndexReader inReader(
+	InMemoryIndexReader inReader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndexBin");
 	AStarSearch ass(inReader, outReader);
 //	ass.search(22101573);

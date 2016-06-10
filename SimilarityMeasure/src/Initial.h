@@ -74,7 +74,6 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
 }
 
 Initial::~Initial(){
-	delete blacklist;
 }
 
 void Initial::clearState() {
