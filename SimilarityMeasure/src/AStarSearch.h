@@ -28,7 +28,8 @@ public:
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
 	~AStarSearch();
 
-	void updateTopK(map<int, double>* candidates, double gReduction, double cReduction);
+	void updateTopK(map<int, double>* candidates, double gReduction,
+			double cReduction);
 //	void pruneTopK(int min);
 	map<int, TopKEntry>& getTopK();
 	int getBestMatch();
@@ -80,13 +81,14 @@ AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 AStarSearch::~AStarSearch() {
 }
 
-void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction, double cReduction) {
+void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
+		double cReduction) {
 	double candidateReduction = cReduction - gReduction;
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
 		TopKEntry& value = topK[it->first];
 		value.weight += it->second;
-		if (value.delta == 0){
+		if (value.delta == 0) {
 			value.delta = globalDelta;
 		}
 		value.delta -= candidateReduction;
@@ -98,15 +100,19 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction, do
 
 	vector<int> toErase;
 
-	for (map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end(); it++){
+	for (map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end();
+			it++) {
 		TopKEntry& value = it->second;
 		value.delta -= gReduction;
-		if (value.delta < (topValue - value.weight)){
+		if (value.delta < 0){
+			cout << "################ FEHLER #####################" << endl;
+		}
+		if (value.delta < (topValue - value.weight)) {
 
 			toErase.push_back(it->first);
 		}
 	}
-	for (size_t i=0; i<toErase.size(); i++){
+	for (size_t i = 0; i < toErase.size(); i++) {
 		topK.erase(toErase[i]);
 	}
 	globalDelta -= gReduction;
@@ -169,13 +175,16 @@ void AStarSearch::search(int itemId) {
 	}
 
 	cout << topId << ": " << topValue << endl;
-	cout << "TOP K Size: " << topK.size() << " terminate:  " << terminate << " Global Delta: " << globalDelta << endl;
+	cout << "TOP K Size: " << topK.size() << " terminate:  " << terminate
+			<< " Global Delta: " << globalDelta << endl;
 }
 
 void AStarSearch::processInitial(Initial* initial, State& state) {
 	StatementGroup& stmtGr = initial->getNextStmtGr();
 	int pId = stmtGr.getPropertyId();
-	vector<int>& targets = stmtGr.getTargets();
+	vector<int>& targetsTmp = stmtGr.getTargets();
+	vector<int> targets;
+	targets.assign(targetsTmp.begin(), targetsTmp.end());
 	vector<int> itemTrail = initial->getItemTrail();
 	vector<int> propertyTrail = initial->getPropertyTrail();
 	int itemDegree = initial->getItemDegree();
@@ -213,10 +222,14 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 			cout << (++candidates->begin())->first << endl;
 		}
 
-		if ((ip != 0) && (candidates->size() != 0)){
-			double allReduce = (op * ( 1.0 / (double) (1 + ip - candidates->size()))) - (op * (1.0 / (double) (1 + ip)));
-			double candidatesReduce = (op * ( 1.0 / (double) (1 + ip - candidates->size())));
-			cout << "allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
+		if ((ip != 0) && (candidates->size() != 0)) {
+			double allReduce = (op
+					* (1.0 / (double) (1 + ip - candidates->size())))
+					- (op * (1.0 / (double) (1 + ip)));
+			double candidatesReduce = (op
+					* (1.0 / (double) (1 + ip - candidates->size())));
+			cout << "allReduce: " << allReduce << " candidatesReduce: "
+					<< candidatesReduce << endl;
 			updateTopK(candidates, allReduce, candidatesReduce);
 		}
 
@@ -248,6 +261,8 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		return result;
 	}
 
+	vector<int> inUse;
+
 	IndexReader* reader;
 	IndexReader* invReader;
 	Direction direct = direction;
@@ -268,6 +283,9 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 	if (origin.getId() == 0) {
 		return result; // null item -> not valid
+	}else{
+		reader->setInUseFlag(itemId);
+		inUse.push_back(itemId);
 	}
 
 	extendTrails(searchTrailPositions, searchTrailTargets, origin,
@@ -295,8 +313,14 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 					- searchTrailTargets.size() - 1;
 			if (propertyTrail.size() > searchTrailTargets.size()) { // property path is not at the end
 				Item& item = reader->getItemById(id);
-				extendTrails(searchTrailPositions, searchTrailTargets, item,
-						propertyTrail[propertyTrailPosition]);
+//				cout << "find: " << item.getId() << endl;
+				if (item.getId() != 0) {
+					reader->setInUseFlag(id);
+					inUse.push_back(id);
+
+					extendTrails(searchTrailPositions, searchTrailTargets, item,
+							propertyTrail[propertyTrailPosition]);
+				}
 			} else {
 				addItemToResult(result, id, itemTrail, weight, &blacklist,
 						inpenalty);
@@ -309,6 +333,12 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 //			cout << "go to upper layer" << endl;
 		}
 	}
+
+	// unset inUse flags
+	for (size_t i = 0; i < inUse.size(); i++) {
+		reader->unsetInUseFlag(inUse[i]);
+	}
+
 	// multiply in-penalty
 	for (map<int, double>::iterator it = result->begin(); it != result->end();
 			it++) {

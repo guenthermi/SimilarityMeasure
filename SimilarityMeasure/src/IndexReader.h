@@ -23,7 +23,7 @@ using namespace std;
 class IndexReader {
 public:
 
-	static const int cacheSize = 1000000;
+	int cacheSize = 1000000;
 	static const int cacheFreeRate = 100000;
 
 	IndexReader(string indexFile);
@@ -33,7 +33,10 @@ public:
 	virtual bool hasNextItem();
 	virtual bool getNextItem(Item& item, bool caching = false);
 	virtual Item& getItemById(int id);
+	void setInUseFlag(int id);
+	void unsetInUseFlag(int id);
 	string getPath();
+
 
 protected:
 
@@ -45,6 +48,7 @@ protected:
 		}
 		unsigned char usage;
 		Item entry;
+		bool inUse;
 	};
 	map<int, CacheLine*> cache;
 
@@ -112,7 +116,9 @@ Item& IndexReader::getItemById(int id) {
 	map<int, CacheLine*>::iterator ii = cache.find(id);
 	if (ii != cache.end()) {
 		CacheLine* line = ii->second;
-		line->usage++;
+		if (line->usage < 255){
+			line->usage++;
+		}
 		cacheUsed++;
 		return line->entry;
 	}
@@ -157,6 +163,15 @@ Item& IndexReader::getItemById(int id) {
 	throw 20;
 }
 
+void IndexReader::setInUseFlag(int id){
+//	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
+	cache[id]->inUse = true;
+}
+
+void IndexReader::unsetInUseFlag(int id){
+	cache[id]->inUse = false;
+}
+
 string IndexReader::getPath(){
 	return filePath;
 }
@@ -178,9 +193,14 @@ void IndexReader::freeCache(int amount) {
 			idArray[i] = NULL;
 		}
 		int j = 0;
-		while (todo > 0) {
+		int inUseRate = 0;
+		while ((todo > 0) && (inUseRate < cacheFreeRate)) {
 			map<int, CacheLine*>::iterator ii;
 			for (ii = cache.begin(); (ii != cache.end()) && (todo > 0); ++ii) {
+				if (ii->second->inUse){
+					inUseRate++;
+					continue;
+				}
 				if (ii->second->usage <= minCacheUsage) {
 					idArray[j] = ii->first;
 					delete ii->second;
@@ -189,7 +209,13 @@ void IndexReader::freeCache(int amount) {
 				}
 			}
 			if (ii == cache.end()) {
+				if (minCacheUsage == 255){
+					return;
+				}
 				minCacheUsage++;
+			}
+			if (inUseRate >= (cacheFreeRate / 2)){
+				cacheSize += cacheFreeRate;
 			}
 		}
 		for (int i = 0; i < j; i++) {
