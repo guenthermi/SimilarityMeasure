@@ -29,7 +29,7 @@ public:
 	~AStarSearch();
 
 	void updateTopK(map<int, double>* candidates, double gReduction,
-			double cReduction);
+			double cReduction, Blacklist& bl);
 //	void pruneTopK(int min);
 	map<int, TopKEntry>& getTopK();
 	int getBestMatch();
@@ -82,8 +82,7 @@ AStarSearch::~AStarSearch() {
 }
 
 void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
-		double cReduction) {
-	double candidateReduction = cReduction - gReduction;
+		double cReduction, Blacklist& bl) {
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
 		TopKEntry& value = topK[it->first];
@@ -91,7 +90,7 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 		if (value.delta == 0) {
 			value.delta = globalDelta;
 		}
-		value.delta -= candidateReduction;
+		value.delta -= cReduction;
 		if (value.weight > topValue) {
 			topValue = value.weight;
 			topId = it->first;
@@ -102,6 +101,9 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 
 	for (map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end();
 			it++) {
+		if (bl.hasItem(it->first)){
+			continue;
+		}
 		TopKEntry& value = it->second;
 		value.delta -= gReduction;
 		if (value.delta < 0){
@@ -169,7 +171,7 @@ void AStarSearch::search(int itemId) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
-		cout << "best choise: " << init->getItemDegree() << endl;
+		cout << "best choise: " << (double) ((double) 1.0 / init->getBaseOP()) * init->getItemDegree()  << " Degree Only: " << init->getItemDegree() << endl;
 		processInitial(init, state);
 		terminate = ((globalDelta < topValue) && (topK.size() == 1));
 	}
@@ -230,7 +232,7 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 					* (1.0 / (double) (1 + ip - candidates->size())));
 			cout << "allReduce: " << allReduce << " candidatesReduce: "
 					<< candidatesReduce << endl;
-			updateTopK(candidates, allReduce, candidatesReduce);
+			updateTopK(candidates, allReduce, candidatesReduce, *bl);
 		}
 
 		delete candidates;
