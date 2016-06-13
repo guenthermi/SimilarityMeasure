@@ -162,10 +162,10 @@ string IndexReader::getPath(){
 }
 
 void IndexReader::pushToCache(Item item) {
-	cache[item.getId()] = new CacheLine(item);
-	if (cache.size() > cacheSize) {
+	if (cache.size() >= cacheSize) {
 		freeCache(cacheFreeRate);
 	}
+	cache[item.getId()] = new CacheLine(item);
 }
 
 void IndexReader::freeCache(int amount) {

@@ -16,6 +16,7 @@
 #include "Blacklist.h"
 #include "State.h"
 #include "Initial.h"
+#include "datamodel/TopKEntry.h"
 
 #include <vector>
 #include <map>
@@ -27,24 +28,26 @@ public:
 	AStarSearch(IndexReader& inReader, IndexReader& outReader);
 	~AStarSearch();
 
-	void updateTopK(map<int, double>* candidates);
-	void pruneTopK(int min);
-	map<int, double>& getTopK();
+	void updateTopK(map<int, double>* candidates, double gReduction, double cReduction);
+//	void pruneTopK(int min);
+	map<int, TopKEntry>& getTopK();
 	int getBestMatch();
 	double getBestMatchValue();
 	void search(int itemId);
 	void processInitial(Initial* initial, State& state);
 	map<int, double>* hasSimilarity(vector<int> propertyTrail,
 			vector<int> itemTrail, Direction direction, double weight,
-			Blacklist& blacklist);
+			Blacklist& blacklist, int& inpenalty);
 
 protected:
+
 	IndexReader& iReader;
 	IndexReader& oReader;
 	NodeFinder finder;
-	map<int, double> topK;
+	map<int, TopKEntry> topK;
 	int topId;
 	double topValue;
+	double globalDelta;
 
 	void addItemToResult(map<int, double>* result, int itemId,
 			vector<int>& itemTrail, double weight, Blacklist* blacklist,
@@ -71,36 +74,57 @@ AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
 		iReader(inReader), oReader(outReader), finder(inReader, outReader) {
 	topId = 0;
 	topValue = 0;
+	globalDelta = 1;
 }
 
 AStarSearch::~AStarSearch() {
 }
 
-void AStarSearch::updateTopK(map<int, double>* candidates) {
+void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction, double cReduction) {
+	double candidateReduction = cReduction - gReduction;
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
-		double& value = topK[it->first];
-		value += it->second;
-		if (value > topValue) {
-			topValue = value;
+		TopKEntry& value = topK[it->first];
+		value.weight += it->second;
+		if (value.delta == 0){
+			value.delta = globalDelta;
+		}
+		value.delta -= candidateReduction;
+		if (value.weight > topValue) {
+			topValue = value.weight;
 			topId = it->first;
 		}
 	}
-}
 
-void AStarSearch::pruneTopK(int min) {
-	vector<int> ids;
-	for (map<int, double>::iterator ii = topK.begin(); ii != topK.end(); ii++) {
-		if (ii->second < min) {
-			ids.push_back(ii->first);
+	vector<int> toErase;
+
+	for (map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end(); it++){
+		TopKEntry& value = it->second;
+		value.delta -= gReduction;
+		if (value.delta < (topValue - value.weight)){
+
+			toErase.push_back(it->first);
 		}
 	}
-	for (size_t i = 0; i < ids.size(); i++) {
-		topK.erase(ids[i]);
+	for (size_t i=0; i<toErase.size(); i++){
+		topK.erase(toErase[i]);
 	}
+	globalDelta -= gReduction;
 }
 
-map<int, double>& AStarSearch::getTopK() {
+//void AStarSearch::pruneTopK(int min) {
+//	vector<int> ids;
+//	for (map<int, double>::iterator ii = topK.begin(); ii != topK.end(); ii++) {
+//		if (ii->second < min) {
+//			ids.push_back(ii->first);
+//		}
+//	}
+//	for (size_t i = 0; i < ids.size(); i++) {
+//		topK.erase(ids[i]);
+//	}
+//}
+
+map<int, TopKEntry>& AStarSearch::getTopK() {
 	return topK;
 }
 
@@ -132,17 +156,20 @@ void AStarSearch::search(int itemId) {
 	state.addInitial(initialIn);
 	state.addInitial(initialOut);
 
-	int maxIteration = 10;
+	int maxIteration = 100;
 	int iteration = 0;
-	while (iteration < maxIteration) {
+	bool terminate = false;
+	while ((iteration < maxIteration) && (!terminate)) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
 		cout << "best choise: " << init->getItemDegree() << endl;
 		processInitial(init, state);
+		terminate = ((globalDelta < topValue) && (topK.size() == 1));
 	}
 
 	cout << topId << ": " << topValue << endl;
+	cout << "TOP K Size: " << topK.size() << " terminate:  " << terminate << " Global Delta: " << globalDelta << endl;
 }
 
 void AStarSearch::processInitial(Initial* initial, State& state) {
@@ -173,10 +200,11 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 				itemTrail, propertyTrail, newItem);
 		state.addInitial(newInitial);
 
-		int inpenalty = 0;
+		int ip = 0;
+
 		map<int, double>* candidates = hasSimilarity(propertyTrail, itemTrail,
 				(initial->getDirection() == incomming) ? outgoing : incomming,
-				op, *bl);
+				op, *bl, ip);
 		cout << "candidates size: " << candidates->size() << endl;
 		if (candidates->size() > 0) {
 			cout << candidates->begin()->first << endl;
@@ -184,7 +212,13 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 		if (candidates->size() > 1) {
 			cout << (++candidates->begin())->first << endl;
 		}
-		updateTopK(candidates);
+
+		if ((ip != 0) && (candidates->size() != 0)){
+			double allReduce = (op * ( 1.0 / (double) (1 + ip - candidates->size()))) - (op * (1.0 / (double) (1 + ip)));
+			double candidatesReduce = (op * ( 1.0 / (double) (1 + ip - candidates->size())));
+			cout << "allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
+			updateTopK(candidates, allReduce, candidatesReduce);
+		}
 
 		delete candidates;
 		itemTrail.pop_back();
@@ -202,7 +236,7 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
  */
 map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		vector<int> itemTrail, Direction direction, double weight,
-		Blacklist& blacklist) {
+		Blacklist& blacklist, int& inpenalty) {
 
 	cout << "Call hasSimilarity itemTrail ";
 	printTrail(itemTrail);
@@ -213,8 +247,6 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 	if (propertyTrail.empty()) {
 		return result;
 	}
-
-	int inpenalty;
 
 	IndexReader* reader;
 	IndexReader* invReader;
@@ -283,7 +315,7 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 		it->second *= 1.0 / inpenalty;
 	}
 
-	return result;
+	return result; // TODO just return unordered_set, weight
 
 }
 
