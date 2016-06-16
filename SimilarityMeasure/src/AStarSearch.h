@@ -20,6 +20,7 @@
 
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <algorithm>
 
 class AStarSearch {
@@ -31,7 +32,7 @@ public:
 	void updateTopK(map<int, double>* candidates, double gReduction,
 			double cReduction, Blacklist& bl);
 //	void pruneTopK(int min);
-	map<int, TopKEntry>& getTopK();
+	unordered_map<int, TopKEntry>& getTopK();
 	int getBestMatch();
 	double getBestMatchValue();
 	void search(int itemId);
@@ -45,7 +46,7 @@ protected:
 	IndexReader& iReader;
 	IndexReader& oReader;
 	NodeFinder finder;
-	map<int, TopKEntry> topK;
+	unordered_map<int, TopKEntry> topK;
 	int topId;
 	double topValue;
 	double globalDelta;
@@ -99,7 +100,7 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 
 	vector<int> toErase;
 
-	for (map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end();
+	for (unordered_map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end();
 			it++) {
 		if (bl.hasItem(it->first)){
 			continue;
@@ -132,7 +133,7 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 //	}
 //}
 
-map<int, TopKEntry>& AStarSearch::getTopK() {
+unordered_map<int, TopKEntry>& AStarSearch::getTopK() {
 	return topK;
 }
 
@@ -164,7 +165,7 @@ void AStarSearch::search(int itemId) {
 	state.addInitial(initialIn);
 	state.addInitial(initialOut);
 
-	int maxIteration = 100;
+	int maxIteration = 10;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
