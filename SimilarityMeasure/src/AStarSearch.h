@@ -359,12 +359,8 @@ void AStarSearch::addItemToResult(map<int, double>* result, int itemId,
 		vector<int>& itemTrail, double weight, Blacklist* blacklist,
 		int& inpenalty) {
 
-	// check item trail
-	bool inItemTrail = false;
-	for (size_t i = 0; i < itemTrail.size(); i++) {
-		if (itemTrail[i] == itemId) {
-			return; // item is in item trail -> do not add
-		}
+	if (itemTrail[0] == itemId) {
+		return; // item is origin
 	}
 
 	inpenalty++;
@@ -376,10 +372,8 @@ void AStarSearch::addItemToResult(map<int, double>* result, int itemId,
 		blacklist->addItem(itemId);
 	}
 
-	// add item if not in item trail or blacklist
-	if (!inItemTrail) {
-		(*result)[itemId] = weight;
-	}
+	// add item if not in blacklist
+	(*result)[itemId] = weight;
 }
 
 void AStarSearch::extendTrails(vector<int>& searchTrailPositions,
