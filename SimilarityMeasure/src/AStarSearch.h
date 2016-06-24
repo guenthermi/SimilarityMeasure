@@ -8,8 +8,6 @@
 #ifndef ASTARSEARCH_H_
 #define ASTARSEARCH_H_
 
-#include "NodeFinder.h"
-#include "Direction.h"
 #include "IndexReader.h"
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
@@ -26,7 +24,7 @@
 class AStarSearch {
 public:
 
-	AStarSearch(IndexReader& inReader, IndexReader& outReader);
+	AStarSearch(IndexReader& reader);
 	~AStarSearch();
 
 	void updateTopK(map<int, double>* candidates, double gReduction,
@@ -38,14 +36,12 @@ public:
 	void search(int itemId);
 	void processInitial(Initial* initial, State& state);
 	map<int, double>* hasSimilarity(vector<int> propertyTrail,
-			vector<int> itemTrail, Direction direction, double weight,
-			Blacklist& blacklist, int& inpenalty);
+			vector<int> itemTrail, double weight, Blacklist& blacklist,
+			int& inpenalty);
 
 protected:
 
-	IndexReader& iReader;
-	IndexReader& oReader;
-	NodeFinder finder;
+	IndexReader& reader;
 	unordered_map<int, TopKEntry> topK;
 	int topId;
 	double topValue;
@@ -57,7 +53,6 @@ protected:
 	void extendTrails(vector<int>& searchTrailPositions,
 			vector<vector<int>*>& searchTrailTargets, Item& item,
 			int propertyId);
-	IndexReader* alterReaderDirection(Direction& direction);
 	template<typename T> void clearVector(vector<T*>& v);
 	static bool cmp(const int* a, const int* b);
 
@@ -72,8 +67,8 @@ protected:
 
 };
 
-AStarSearch::AStarSearch(IndexReader& inReader, IndexReader& outReader) :
-		iReader(inReader), oReader(outReader), finder(inReader, outReader) {
+AStarSearch::AStarSearch(IndexReader& reader) :
+		reader(reader) {
 	topId = 0;
 	topValue = 0;
 	globalDelta = 1;
@@ -100,14 +95,14 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 
 	vector<int> toErase;
 
-	for (unordered_map<int, TopKEntry>::iterator it = topK.begin(); it != topK.end();
-			it++) {
-		if (bl.hasItem(it->first)){
+	for (unordered_map<int, TopKEntry>::iterator it = topK.begin();
+			it != topK.end(); it++) {
+		if (bl.hasItem(it->first)) {
 			continue;
 		}
 		TopKEntry& value = it->second;
 		value.delta -= gReduction;
-		if (value.delta < 0){
+		if (value.delta < 0) {
 			cout << "################ FEHLER #####################" << endl;
 		}
 		if (value.delta < (topValue - value.weight)) {
@@ -146,24 +141,17 @@ double AStarSearch::getBestMatchValue() {
 }
 
 void AStarSearch::search(int itemId) {
-	Item& out = oReader.getItemById(itemId);
-	Item& in = iReader.getItemById(itemId);
+	Item& item = reader.getItemById(itemId);
 
-	int inDegree = in.getDegree();
-	int outDegree = out.getDegree();
+	int degree = item.getDegree();
 
-	Initial* initialIn = new Initial(iReader, itemId, NULL,
-			(double) inDegree / (inDegree + outDegree), incomming,
-			vector<int>(), vector<int>(), &in);
-	Initial* initialOut = new Initial(oReader, itemId, NULL,
-			(double) outDegree / (inDegree + outDegree), outgoing,
-			vector<int>(), vector<int>(), &out);
-	initialIn->addToItemTrail(itemId);
-	initialOut->addToItemTrail(itemId);
+	Initial* initial = new Initial(reader, itemId, NULL, 1.0, vector<int>(),
+			vector<int>(), &item);
+
+	initial->addToItemTrail(itemId);
 
 	State state;
-	state.addInitial(initialIn);
-	state.addInitial(initialOut);
+	state.addInitial(initial);
 
 	int maxIteration = 10;
 	int iteration = 0;
@@ -172,7 +160,10 @@ void AStarSearch::search(int itemId) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
 		Initial* init = state.getBestChoice();
-		cout << "best choise: " << (double) ((double) 1.0 / init->getBaseOP()) * init->getItemDegree()  << " Degree Only: " << init->getItemDegree() << endl;
+		cout << "best choise: "
+				<< (double) ((double) 1.0 / init->getBaseOP())
+						* init->getItemDegree() << " Degree Only: "
+				<< init->getItemDegree() << endl;
 		processInitial(init, state);
 		terminate = ((globalDelta < topValue) && (topK.size() == 1));
 	}
@@ -198,24 +189,15 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
 		double op = initial->getBaseOP() * (double) (1.0 / itemDegree);
 		itemTrail.push_back(targets[i]);
 
-		Item* newItem;
-		IndexReader* initialReader;
-		if (initial->getDirection() == incomming) {
-			initialReader = &iReader;
-			newItem = &iReader.getItemById(targets[i]);
-		} else {
-			initialReader = &oReader;
-			newItem = &oReader.getItemById(targets[i]);
-		}
-		Initial* newInitial = new Initial(*initialReader, newItem->getId(), bl,
-				initial->getBaseOP() / itemDegree, initial->getDirection(),
-				itemTrail, propertyTrail, newItem);
+		Item* newItem = &reader.getItemById(targets[i]);
+		cout << newItem->getId();
+		Initial* newInitial = new Initial(reader, newItem->getId(), bl,
+				initial->getBaseOP() / itemDegree, itemTrail, propertyTrail,
+				newItem);
 		state.addInitial(newInitial);
-
 		int ip = 0;
 
 		map<int, double>* candidates = hasSimilarity(propertyTrail, itemTrail,
-				(initial->getDirection() == incomming) ? outgoing : incomming,
 				op, *bl, ip);
 		cout << "candidates size: " << candidates->size() << endl;
 		if (candidates->size() > 0) {
@@ -251,7 +233,7 @@ void AStarSearch::processInitial(Initial* initial, State& state) {
  * 	weight			holds the inverted weight for the path in the property trail
  */
 map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
-		vector<int> itemTrail, Direction direction, double weight,
+		vector<int> itemTrail, double weight,
 		Blacklist& blacklist, int& inpenalty) {
 
 	cout << "Call hasSimilarity itemTrail ";
@@ -266,28 +248,17 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 	vector<int> inUse;
 
-	IndexReader* reader;
-	IndexReader* invReader;
-	Direction direct = direction;
-	if (direct == outgoing) {
-		reader = &oReader;
-		invReader = &iReader;
-	} else {
-		reader = &iReader;
-		invReader = &oReader;
-	}
-
 	int itemId = itemTrail.back();
 
 	vector<vector<int>*> searchTrailTargets;
 	vector<int> searchTrailPositions;
 
-	Item& origin = reader->getItemById(itemId); // the item where the two paths end
+	Item& origin = reader.getItemById(itemId); // the item where the two paths end
 
 	if (origin.getId() == 0) {
 		return result; // null item -> not valid
-	}else{
-		reader->setInUseFlag(itemId);
+	} else {
+		reader.setInUseFlag(itemId);
 		inUse.push_back(itemId);
 	}
 
@@ -315,10 +286,10 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 			propertyTrailPosition = propertyTrail.size()
 					- searchTrailTargets.size() - 1;
 			if (propertyTrail.size() > searchTrailTargets.size()) { // property path is not at the end
-				Item& item = reader->getItemById(id);
+				Item& item = reader.getItemById(id);
 //				cout << "find: " << item.getId() << endl;
 				if (item.getId() != 0) {
-					reader->setInUseFlag(id);
+					reader.setInUseFlag(id);
 					inUse.push_back(id);
 
 					extendTrails(searchTrailPositions, searchTrailTargets, item,
@@ -339,7 +310,7 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 	// unset inUse flags
 	for (size_t i = 0; i < inUse.size(); i++) {
-		reader->unsetInUseFlag(inUse[i]);
+		reader.unsetInUseFlag(inUse[i]);
 	}
 
 	// multiply in-penalty
@@ -380,25 +351,13 @@ void AStarSearch::extendTrails(vector<int>& searchTrailPositions,
 		vector<vector<int>*>& searchTrailTargets, Item& item, int propertyId) {
 	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
 	for (size_t i = 0; i < stmtGrs.size(); i++) {
-		if (stmtGrs[i].getPropertyId() == propertyId) {
+		if (stmtGrs[i].getPropertyId() == -propertyId) {
 			searchTrailTargets.push_back(&stmtGrs[i].getTargets()); // evt. & weglassen
 		}
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element
 		searchTrailPositions.push_back(0);
 	}
-}
-
-IndexReader* AStarSearch::alterReaderDirection(Direction& direction) {
-	IndexReader* reader;
-	if (direction == outgoing) {
-		reader = &oReader;
-		direction = incomming;
-	} else {
-		reader = &iReader;
-		direction = outgoing;
-	}
-	return reader;
 }
 
 template<typename T> void AStarSearch::clearVector(vector<T*>& v) {

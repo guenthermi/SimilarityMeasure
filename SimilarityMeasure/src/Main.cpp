@@ -9,11 +9,7 @@
 #include "datamodel/StatementGroup.h"
 #include "datamodel/Index.h"
 #include "IndexReader.h"
-#include "NodeFinder.h"
-#include "PropertyStatistics.h"
 #include "AStarSearch.h"
-#include "PartedIndexReader.h"
-#include "BinaryIndexReader.h"
 #include "InMemoryIndexReader.h"
 #include "WebApi.h"
 #include "Blacklist.h"
@@ -43,52 +39,32 @@ void testIndexReader() {
 	cout << "Complete IndexReader Test" << endl << endl;
 }
 
-void testPartedIndexReader() {
-	cout << "Start Testing - PartedIndexReader" << endl;
-
-	PartedIndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndex");
-	Item* item;
-	for (int i=0; i<100; i++){
-		item = &inReader.getItemById(17329259);
-	}
-	cout << item->getDegree() << endl;
-	cout << item->getId() << " -- "
-			<< item->getStatementGroups()[0].getTargets().size() << "--"
-			<< item->getStatementGroups()[0].getPropertyId() << "--"
-			<< item->getStatementGroups()[0].getTargets()[0] << endl;
-
-	cout << "Complete PartedIndexReader Test" << endl << endl;
-}
-
-void testBinaryIndexReader() {
-	cout << "Start Testing - BinaryIndexReader" << endl;
-
-	BinaryIndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndexBin");
+void testCombinedIndexReader(){
+	cout << "Start Testing - CombinedIndexReader" << endl;
+	InMemoryIndexReader reader(
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 	Item* item;
 	for (int i=0; i<1000; i++){
-		item = &inReader.getItemById(i);
+		item = &reader.getItemById(i);
 	}
 	cout << item->getDegree() << endl;
 	cout << item->getId() << " -- "
-			<< item->getStatementGroups()[0].getTargets().size() << "--"
-			<< item->getStatementGroups()[0].getPropertyId() << "--"
+			<< item->getStatementGroups()[0].getTargets().size() << " -- "
+			<< item->getStatementGroups()[0].getPropertyId() << " -- "
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
-	cout << "Complete BinaryIndexReader Test" << endl << endl;
+	cout << "Complete CombinedIndexReader Test" << endl << endl;
 }
 
 void testAStarSearch() {
 	cout << "Start Testing - AStarSearch" << endl;
-	InMemoryIndexReader outReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/outgoingEdgesIndexBin");
-	InMemoryIndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgesIndexBin");
-	AStarSearch ass(inReader, outReader);
+	InMemoryIndexReader reader(
+				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
+
+	AStarSearch ass(reader);
 //	ass.search(22101573);
 
-	ass.search(22101603);
+//	ass.search(22101603);
 
 //	ass.search(251657);
 
@@ -98,7 +74,7 @@ void testAStarSearch() {
 
 //	ass.search(567);
 
-//	ass.search(183);
+	ass.search(183);
 
 //	ass.search(8337);
 
@@ -111,7 +87,7 @@ int main() {
 	cout << "Start Testing" << endl << endl;
 //	testIndexReader();
 	testAStarSearch();
-//	testBinaryIndexReader();
+//	testCombinedIndexReader();
 	cout << "Ende" << endl;
 	return 0;
 }

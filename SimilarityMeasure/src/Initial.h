@@ -10,14 +10,13 @@
 
 #include "datamodel/Item.h"
 #include "IndexReader.h"
-#include "Direction.h"
 
 #include <vector>
 
 class Initial {
 public:
 	Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
-			Direction d, vector<int> itemTrail, vector<int> propertyTrail,
+			vector<int> itemTrail, vector<int> propertyTrail,
 			Item* item = NULL);
 	~Initial();
 	void clearState();
@@ -28,7 +27,6 @@ public:
 	void addToItemTrail(int id);
 	void addToPropertyTrail(int id);
 
-	Direction getDirection();
 	Blacklist* getBlacklist();
 	int getItemId();
 	double getBaseOP();
@@ -39,7 +37,6 @@ protected:
 
 	// initial values
 	double baseOP;
-	Direction direction;
 	Blacklist* blacklist;
 	int itemId;
 
@@ -55,11 +52,9 @@ protected:
 };
 
 Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
-		Direction d, vector<int> itemTrail, vector<int> propertyTrail,
-		Item* item) :
+		vector<int> itemTrail, vector<int> propertyTrail, Item* item) :
 		reader(reader) {
 	this->baseOP = baseOP;
-	this->direction = d;
 	this->blacklist = bl;
 	this->itemId = itemId;
 	this->itemTrail = itemTrail;
@@ -73,7 +68,7 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double baseOP,
 	clearState();
 }
 
-Initial::~Initial(){
+Initial::~Initial() {
 }
 
 void Initial::clearState() {
@@ -115,9 +110,6 @@ void Initial::addToPropertyTrail(int id) {
 	propertyTrail.push_back(id);
 }
 
-Direction Initial::getDirection() {
-	return direction;
-}
 Blacklist* Initial::getBlacklist() {
 	return blacklist;
 }
