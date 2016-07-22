@@ -71,8 +71,10 @@ bool InMemoryIndexReader::getNextItem(Item& item, bool caching){
 Item& InMemoryIndexReader::getItemById(int id){
 	map<int, CacheLine*>::iterator ii = cache.find(id);
 	if (ii != cache.end()){
+		cacheUsed++;
 		return cache[id]->entry;
 	}
+	fileUsed++;
 	Item item = index.getItem(id);
 	if (item.getId() != 0){
 		pushToCache(item);

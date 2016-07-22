@@ -62,7 +62,7 @@ protected:
 		for (size_t i = 0; i < trail.size(); i++) {
 			cout << trail[i] << " ";
 		}
-		cout << "]" << endl;
+		cout << "]";
 	}
 
 };
@@ -79,6 +79,7 @@ AStarSearch::~AStarSearch() {
 
 void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 		double cReduction, Blacklist& bl) {
+	cout << "cReduce: " << cReduction << " gReduce: " << gReduction << " candidates size: " << candidates->size() << endl;
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
 		TopKEntry& value = topK[it->first];
@@ -97,16 +98,17 @@ void AStarSearch::updateTopK(map<int, double>* candidates, double gReduction,
 
 	for (unordered_map<int, TopKEntry>::iterator it = topK.begin();
 			it != topK.end(); it++) {
-		if (bl.hasItem(it->first)) {
-			continue;
-		}
 		TopKEntry& value = it->second;
-		value.delta -= gReduction;
+		if (!bl.hasItem(it->first)) {
+			value.delta -= gReduction;
+		}
 		if (value.delta < 0) {
 			cout << "################ FEHLER #####################" << endl;
 		}
 		if (value.delta < (topValue - value.weight)) {
-
+			if (topId == it->first){
+				cout << "####Problem:" << endl;
+			}
 			toErase.push_back(it->first);
 		}
 	}
@@ -143,84 +145,88 @@ double AStarSearch::getBestMatchValue() {
 void AStarSearch::search(int itemId) {
 	Item& item = reader.getItemById(itemId);
 
+	if (item.getId() == 0){
+		cout << "ERROR: Item does not exist" << endl;
+		return;
+	}
+
 	int degree = item.getDegree();
 
-	Initial* initial = new Initial(reader, itemId, NULL, 1.0, vector<int>(),
-			vector<int>(), &item);
+	State state(&topK, &globalDelta, &topValue);
 
-	initial->addToItemTrail(itemId);
+	vector<int> itemTrail;
+	itemTrail.push_back(item.getId());
 
-	State state;
-	state.addInitial(initial);
+	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
+	for (int i=0; i<stmtGrs.size(); i++){
+		vector<int> propertyTrail;
+		propertyTrail.push_back(stmtGrs[i].getPropertyId());
+		vector<int>& targets = stmtGrs[i].getTargets();
+		for (int j=0; j<targets.size(); j++){
+			itemTrail.push_back(targets[j]);
+			Initial* initial = new Initial(reader, targets[j], NULL, (double) 1.0 / degree, 1, itemTrail, propertyTrail);
+			state.addInitial(initial);
+			itemTrail.pop_back();
+		}
+	}
 
-	int maxIteration = 10;
+	cout << "#Initials= " << state.getInitials().size() << endl;
+
+	int maxIteration = 1000;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
-		Initial* init = state.getBestChoice();
-		cout << "best choise: "
-				<< (double) ((double) 1.0 / init->getBaseOP())
-						* init->getItemDegree() << " Degree Only: "
-				<< init->getItemDegree() << endl;
+		Initial* init = state.getBestChoice(reader);
+//		cout << "best choise: " << init->getItemId() << " value: "
+//				<< init->getPenalty() << endl;
 		processInitial(init, state);
+		state.deleteInitial(init);
 		terminate = ((globalDelta < topValue) && (topK.size() == 1));
 	}
-
+	cout << "initial size: " << state.getInitials().size() << endl;
 	cout << topId << ": " << topValue << endl;
 	cout << "TOP K Size: " << topK.size() << " terminate:  " << terminate
-			<< " Global Delta: " << globalDelta << endl;
+			<< " Global Delta: " << globalDelta <<  " Top Delta: " << ((topK.size() > 1) ? topK[topId].delta : 0) << endl;
 }
 
 void AStarSearch::processInitial(Initial* initial, State& state) {
-	StatementGroup& stmtGr = initial->getNextStmtGr();
-	int pId = stmtGr.getPropertyId();
-	vector<int>& targetsTmp = stmtGr.getTargets();
-	vector<int> targets;
-	targets.assign(targetsTmp.begin(), targetsTmp.end());
-	vector<int> itemTrail = initial->getItemTrail();
-	vector<int> propertyTrail = initial->getPropertyTrail();
-	int itemDegree = initial->getItemDegree();
-	propertyTrail.push_back(pId);
-	for (size_t i = 0; i < targets.size(); i++) {
-		Blacklist* bl = new Blacklist();
-		bl->setNext(initial->getBlacklist());
-		double op = initial->getBaseOP() * (double) (1.0 / itemDegree);
-		itemTrail.push_back(targets[i]);
+	Blacklist* bl = new Blacklist();
+	bl->setNext(initial->getBlacklist());
 
-		Item* newItem = &reader.getItemById(targets[i]);
-		cout << newItem->getId();
-		Initial* newInitial = new Initial(reader, newItem->getId(), bl,
-				initial->getBaseOP() / itemDegree, itemTrail, propertyTrail,
-				newItem);
-		state.addInitial(newInitial);
-		int ip = 0;
+	// create new initials
+	double newOp = state.createNewInitials(initial, bl, state.getInitials(), reader);
 
-		map<int, double>* candidates = hasSimilarity(propertyTrail, itemTrail,
-				op, *bl, ip);
-		cout << "candidates size: " << candidates->size() << endl;
-		if (candidates->size() > 0) {
-			cout << candidates->begin()->first << endl;
-		}
-		if (candidates->size() > 1) {
-			cout << (++candidates->begin())->first << endl;
-		}
+	// compute similarities
+	int ip = 0;
+	cout << "base ip: " << initial->getBaseIP() << endl;
+	map<int, double>* candidates = hasSimilarity(initial->getPropertyTrail(), initial->getItemTrail(), initial->getOP(), *bl, ip);
 
-		if ((ip != 0) && (candidates->size() != 0)) {
-			double allReduce = (op
-					* (1.0 / (double) (1 + ip - candidates->size())))
-					- (op * (1.0 / (double) (1 + ip)));
-			double candidatesReduce = (op
-					* (1.0 / (double) (1 + ip - candidates->size())));
-			cout << "allReduce: " << allReduce << " candidatesReduce: "
-					<< candidatesReduce << endl;
-			updateTopK(candidates, allReduce, candidatesReduce, *bl);
-		}
-
-		delete candidates;
-		itemTrail.pop_back();
+//	cout << "candidates size: " << candidates->size() << endl;
+	if (candidates->size() > 0) {
+//		cout << candidates->begin()->first << endl;
 	}
+	if (candidates->size() > 1) {
+//		cout << (++candidates->begin())->first << endl;
+	}
+
+	double oldIp = initial->getIpMin();
+//	double oldIp = 1.0 / (double) max(1, (int) ((ip - candidates->size())+1));
+	double oldOp = initial->getOP();
+	cout << "old OP " << oldOp;
+	if ((ip != 0) && (candidates->size() != 0)) {
+		double candidatesReduce = oldOp * oldIp;
+		double allReduce = candidatesReduce -  (oldOp * ( 1.0 / ( (double) ip + 1.0 )));
+		cout << "new OP: " << newOp <<  " --> allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
+//		cout << "allReduce: " << allReduce << " candidatesReduce: "
+//				<< candidatesReduce << endl;
+		updateTopK(candidates, allReduce, candidatesReduce, *bl);
+	}else{
+		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << "baseIP was " << initial->getBaseIP() << " --> candidates size == 0" << endl;
+	}
+
+	delete candidates;
 
 }
 
@@ -238,7 +244,7 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 
 	cout << "Call hasSimilarity itemTrail ";
 	printTrail(itemTrail);
-	cout << "W: " << weight << " PropertyTrail ";
+	cout << " OP: " << weight << " PropertyTrail ";
 	printTrail(propertyTrail);
 	cout << endl;
 	map<int, double>* result = new map<int, double>();
@@ -266,6 +272,10 @@ map<int, double>* AStarSearch::hasSimilarity(vector<int> propertyTrail,
 			propertyTrail.back());
 
 	if (searchTrailTargets.size() == 0) {
+		// unset inUse flags
+		for (size_t i = 0; i < inUse.size(); i++) {
+			reader.unsetInUseFlag(inUse[i]);
+		}
 		return result;
 	}
 
