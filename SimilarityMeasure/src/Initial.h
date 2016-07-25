@@ -8,7 +8,6 @@
 #ifndef INITIAL_H_
 #define INITIAL_H_
 
-#include "AStarSearch.h"
 #include "datamodel/Item.h"
 #include "IndexReader.h"
 

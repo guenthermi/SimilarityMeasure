@@ -9,7 +9,7 @@
 #include "datamodel/StatementGroup.h"
 #include "datamodel/Index.h"
 #include "IndexReader.h"
-#include "AStarSearch.h"
+#include "TopKSearch.h"
 #include "InMemoryIndexReader.h"
 #include "WebApi.h"
 #include "Blacklist.h"
@@ -61,22 +61,22 @@ void testAStarSearch() {
 	InMemoryIndexReader reader(
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
-	AStarSearch ass(reader);
-//	ass.search(22101573);
+	TopKSearch tks(reader);
+//	tks.search(22101573);
 
-//	ass.search(22101603);
+//	tks.search(22101603);
 
-//	ass.search(251657);
+//	tks.search(251657);
 
-//	ass.search(421);
+//	tks.search(421);
 
-//	ass.search(2001293); // -> sehr langsam?!
+//	tks.search(2001293); // -> sehr langsam?!
 
-//	ass.search(567);
+//	tks.search(567);
 
-	ass.search(183);
+	tks.search(183);
 
-//	ass.search(8337);
+//	tks.search(8337);
 
 //	Item& item = inReader.getItemById(13442814);
 

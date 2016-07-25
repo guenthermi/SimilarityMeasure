@@ -10,7 +10,7 @@
 
 #include "Initial.h"
 #include "Blacklist.h"
-#include "AStarSearch.h"
+#include "TopKSearch.h"
 #include "datamodel/TopKEntry.h"
 
 #include<set>
