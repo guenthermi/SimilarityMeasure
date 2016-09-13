@@ -8,7 +8,7 @@
 #ifndef TOPKSEARCH_H_
 #define TOPKSEARCH_H_
 
-#include "IndexReader.h"
+#include "InMemoryIndexReader.h"
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
 #include "Blacklist.h"
@@ -24,7 +24,7 @@
 class TopKSearch {
 public:
 
-	TopKSearch(IndexReader& reader);
+	TopKSearch(InMemoryIndexReader& reader);
 	~TopKSearch();
 
 	void updateTopK(map<int, double>* candidates, double gReduction,
@@ -40,7 +40,7 @@ public:
 
 protected:
 
-	IndexReader& reader;
+	InMemoryIndexReader& reader;
 	unordered_map<int, TopKEntry> topK;
 	int topId;
 	double topValue;
@@ -52,8 +52,6 @@ protected:
 	void extendTrails(vector<int>& searchTrailPositions,
 			vector<vector<int>*>& searchTrailTargets, Item& item,
 			int propertyId);
-	template<typename T> void clearVector(vector<T*>& v);
-	static bool cmp(const int* a, const int* b);
 
 	// debug
 	void printTrail(vector<int>& trail) {
@@ -66,7 +64,7 @@ protected:
 
 };
 
-TopKSearch::TopKSearch(IndexReader& reader) :
+TopKSearch::TopKSearch(InMemoryIndexReader& reader) :
 		reader(reader) {
 	topId = 0;
 	topValue = 0;
@@ -130,36 +128,20 @@ double TopKSearch::getBestMatchValue() {
 }
 
 void TopKSearch::search(int itemId) {
-	Item& item = reader.getItemById(itemId);
-
-	if (item.getId() == 0){
-		cout << "ERROR: Item does not exist" << endl;
-		return;
-	}
-
-	int degree = item.getDegree();
 
 	State state(&topK, &globalDelta, &topValue);
 
 	vector<int> itemTrail;
-	itemTrail.push_back(item.getId());
+	itemTrail.push_back(itemId);
 
-	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
-	for (int i=0; i<stmtGrs.size(); i++){
-		vector<int> propertyTrail;
-		propertyTrail.push_back(stmtGrs[i].getPropertyId());
-		vector<int>& targets = stmtGrs[i].getTargets();
-		for (int j=0; j<targets.size(); j++){
-			itemTrail.push_back(targets[j]);
-			Initial* initial = new Initial(reader, targets[j], NULL, (double) 1.0 / degree, 1, itemTrail, propertyTrail);
-			state.addInitial(initial);
-			itemTrail.pop_back();
-		}
-	}
+	vector<int> propertyTrail;
+
+	Initial* initial = new Initial(reader, itemId, NULL, 1.0, 1.0, itemTrail, propertyTrail);
+	state.createNewInitials(initial, NULL, reader);
 
 	cout << "#Initials= " << state.getInitials().size() << endl;
 
-	int maxIteration = 1000;
+	int maxIteration = 10000;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
@@ -179,16 +161,15 @@ void TopKSearch::search(int itemId) {
 void TopKSearch::processInitial(Initial* initial, State& state) {
 	Blacklist* bl = new Blacklist();
 	bl->setNext(initial->getBlacklist());
-
+	cout << "HERE" << endl;
 	// create new initials
-	double newOp = state.createNewInitials(initial, bl, state.getInitials(), reader);
+	double newOp = state.createNewInitials(initial, bl, reader);
 
 	// compute similarities
 	int ip = 0;
-	cout << "base ip: " << initial->getBaseIP() << endl;
 	map<int, double>* candidates = hasSimilarity(initial->getPropertyTrail(), initial->getItemTrail(), initial->getOP(), *bl, ip);
 
-	double oldIp = initial->getIpMin();
+	double oldIp = initial->getInpenalty();
 	double oldOp = initial->getOP();
 	cout << "old OP " << oldOp;
 	if ((ip != 0) && (candidates->size() != 0)) {
@@ -197,7 +178,7 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
 		cout << "new OP: " << newOp <<  " --> allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
 		updateTopK(candidates, allReduce, candidatesReduce, *bl);
 	}else{
-		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << "baseIP was " << initial->getBaseIP() << " --> candidates size == 0" << endl;
+		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << " --> candidates size == 0" << endl;
 	}
 
 	delete candidates;
@@ -340,20 +321,6 @@ void TopKSearch::extendTrails(vector<int>& searchTrailPositions,
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element
 		searchTrailPositions.push_back(0);
-	}
-}
-
-template<typename T> void TopKSearch::clearVector(vector<T*>& v) {
-	for (size_t i = 0; i < v.size(); i++) {
-		delete[] v[i];
-	}
-}
-
-bool TopKSearch::cmp(const int* a, const int* b) {
-	if (a[1] > b[1]) {
-		return true;
-	} else {
-		return false;
 	}
 }
 

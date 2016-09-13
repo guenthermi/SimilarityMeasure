@@ -6,41 +6,17 @@
  */
 
 #include "datamodel/Item.h"
-#include "datamodel/StatementGroup.h"
-#include "datamodel/Index.h"
-#include "IndexReader.h"
+#include "InMemoryIndexReader.h"
 #include "TopKSearch.h"
 #include "InMemoryIndexReader.h"
 #include "WebApi.h"
-#include "Blacklist.h"
 
 #include <iostream>
 
 using namespace std;
 
-void testIndexReader() {
-	cout << "Start Testing - IndexReader" << endl;
-	IndexReader outReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/edgeIndex.txt");
-	Item& item = outReader.getItemById(22101602);
-	cout << item.getId() << " -- " << item.getStatementGroups().size() << "--"
-			<< item.getStatementGroups()[0].getPropertyId() << "--"
-			<< item.getStatementGroups()[0].getTargets()[0] << endl;
-
-	IndexReader inReader(
-			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/incommingEdgeIndex.txt");
-
-	item = inReader.getItemById(5);
-	cout << item.getId() << " -- "
-			<< item.getStatementGroups()[0].getTargets().size() << "--"
-			<< item.getStatementGroups()[0].getPropertyId() << "--"
-			<< item.getStatementGroups()[0].getTargets()[0] << endl;
-
-	cout << "Complete IndexReader Test" << endl << endl;
-}
-
-void testCombinedIndexReader(){
-	cout << "Start Testing - CombinedIndexReader" << endl;
+void testInMemoryIndexReader(){
+	cout << "Start Testing - InMemoryIndexReader" << endl;
 	InMemoryIndexReader reader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 	Item* item;
@@ -53,42 +29,38 @@ void testCombinedIndexReader(){
 			<< item->getStatementGroups()[0].getPropertyId() << " -- "
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
-	cout << "Complete CombinedIndexReader Test" << endl << endl;
+	cout << "Complete InMemoryIndexReader Test" << endl << endl;
 }
 
 void testAStarSearch() {
+
+	// Items for testing
+	int testItems[] = {
+		22101573, 	// show based on Amadeus
+		22101603, 	// russian encyclopedic article
+		421, 		// UFO
+		2001293, 	// Tine Reymer (singer, actor) -> sehr langsam?!
+		567, 		// Angela Merkel
+		183, 		// Germany
+		8337, 		// Harry Potter (novel series)
+		111 		// Mars
+	};
+
 	cout << "Start Testing - AStarSearch" << endl;
 	InMemoryIndexReader reader(
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
 	TopKSearch tks(reader);
-//	tks.search(22101573);
 
-//	tks.search(22101603);
-
-//	tks.search(251657);
-
-//	tks.search(421);
-
-//	tks.search(2001293); // -> sehr langsam?!
-
-//	tks.search(567);
-
-	tks.search(183);
-
-//	tks.search(8337);
-
-//	Item& item = inReader.getItemById(13442814);
+	tks.search(testItems[1]);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }
 
 int main() {
 	cout << "Start Testing" << endl << endl;
-//	testIndexReader();
 	testAStarSearch();
-//	testCombinedIndexReader();
-	cout << "Ende" << endl;
+	cout << "End" << endl;
 	return 0;
 }
 

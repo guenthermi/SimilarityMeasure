@@ -19,6 +19,9 @@ using namespace std;
 
 class BinaryIndex {
 public:
+
+	static const int kItemSize = 25000000;
+
 	BinaryIndex();
 	~BinaryIndex();
 	void init(string mapPath, string dataPath);

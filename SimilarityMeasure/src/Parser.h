@@ -8,7 +8,6 @@
 #ifndef PARSER_H_
 #define PARSER_H_
 
-#include "datamodel/Index.h"
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
 

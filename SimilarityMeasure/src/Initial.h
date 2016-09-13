@@ -9,7 +9,7 @@
 #define INITIAL_H_
 
 #include "datamodel/Item.h"
-#include "IndexReader.h"
+#include "InMemoryIndexReader.h"
 
 
 #include <vector>
@@ -17,22 +17,16 @@
 
 class Initial {
 public:
-	Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
+	Initial(InMemoryIndexReader& reader, int itemId, Blacklist* bl, double op,
 			double baseIp, vector<int> itemTrail, vector<int> propertyTrail);
 	~Initial();
-	void clearState();
-	double getPenalty();
 	double computePenalty(double* deltaReduce, Item* item = NULL, double minIp = 0);
 	double getPenalty(double* deltaReduce, double min);
 	double getInpenalty();
-	void addToItemTrail(int id);
-	void addToPropertyTrail(int id);
 
 	Blacklist* getBlacklist();
 	int getItemId();
 	double getOP();
-	double getBaseIP();
-	double getIpMin();
 	vector<int>& getItemTrail();
 	vector<int>& getPropertyTrail();
 
@@ -44,14 +38,12 @@ protected:
 
 	// initial values
 	double op;
-	double baseIp;
 	Blacklist* blacklist;
 	int itemId;
 
-	IndexReader& reader;
+	InMemoryIndexReader& reader;
 
 	// computed values
-	double ip;
 	double ipMin;
 	bool inpenaltyAvailable;
 	vector<int> propertyTrail;
@@ -59,11 +51,10 @@ protected:
 
 };
 
-Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
+Initial::Initial(InMemoryIndexReader& reader, int itemId, Blacklist* bl, double op,
 		double baseIp, vector<int> itemTrail, vector<int> propertyTrail) :
 		reader(reader) {
 	this->op = op;
-	this->baseIp = baseIp;
 	this->blacklist = bl;
 	this->itemId = itemId;
 	this->itemTrail = itemTrail;
@@ -76,20 +67,17 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 Initial::~Initial() {
 }
 
-double Initial::getPenalty() {
-	if (inpenaltyAvailable) {
-		return ip * op;
-	} else {
-		return -1;
-	}
-}
-
 double Initial::getInpenalty() {
 	if (inpenaltyAvailable) {
-		return ip;
+		return ipMin;
 	}else{
+		if (itemTrail.size() == 1){
+			ipMin = 1;
+			inpenaltyAvailable = true;
+			return ipMin;
+		}
 		computePenalty(NULL, NULL, 0);
-		return ip;
+		return ipMin;
 	}
 }
 
@@ -103,17 +91,18 @@ double Initial::getInpenalty() {
 double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 	int counter = 0; // debug
 	if (inpenaltyAvailable) {
-		return ip * op;
+		return ipMin * op;
 	}
 	if (minIp > ipMin) {
 		*deltaReduce = 0;
 		return -1;
 	}
+
 	vector<int> inUse;
 	if (item == NULL) {
 		item = &reader.getItemById(itemId);
 		if (item->getId() == 0) {
-			ip = 0;
+			ipMin = 0;
 			inpenaltyAvailable = true;
 			cout << "should not get here" << endl;
 			return 0;
@@ -134,7 +123,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		for (size_t i = 0; i < inUse.size(); i++) {
 			reader.unsetInUseFlag(inUse[i]);
 		}
-		ip = 0;
+		ipMin = 0;
 		inpenaltyAvailable = true;
 		cout << "this should not happen" << endl;
 		return 0;
@@ -167,11 +156,8 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 					double oldIpMin = ipMin;
 					ipMin = (double) 1.0 / (resultNumber-1);
 					if (deltaReduce){
-						// TODO reduce globalDelta
 						(*deltaReduce) = (oldIpMin - ipMin)*op;
-//						cout << "Reduction: " <<
 					}
-
 					return -1;
 				}
 			}
@@ -196,11 +182,10 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		return -2;
 	}
 
-	ip = (double) 1.0 / (resultNumber - 1);
-	if (ip > baseIp){
+	double ip = (double) 1.0 / (resultNumber - 1);
+	if (ip > ipMin){
 		return -2;
 	}
-
 	ipMin = ip;
 	inpenaltyAvailable = true;
 	return ip * op;
@@ -224,14 +209,6 @@ double Initial::getPenalty(double* deltaReduce, double min) {
 	return computePenalty(deltaReduce, NULL, minIp);
 }
 
-void Initial::addToItemTrail(int id) {
-	itemTrail.push_back(id);
-}
-
-void Initial::addToPropertyTrail(int id) {
-	propertyTrail.push_back(id);
-}
-
 Blacklist* Initial::getBlacklist() {
 	return blacklist;
 }
@@ -240,13 +217,6 @@ int Initial::getItemId() {
 }
 double Initial::getOP() {
 	return op;
-}
-double Initial::getBaseIP(){
-	return baseIp;
-}
-
-double Initial::getIpMin(){
-	return ipMin;
 }
 
 vector<int>& Initial::getItemTrail() {

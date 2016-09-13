@@ -10,6 +10,7 @@
 
 #include "Initial.h"
 #include "Blacklist.h"
+#include "InMemoryIndexReader.h"
 #include "TopKSearch.h"
 #include "datamodel/TopKEntry.h"
 
@@ -27,11 +28,10 @@ public:
 
 	State(unordered_map<int, TopKEntry>* topK, double* globalDelta, double* topValue);
 	~State();
-	void addInitial(Initial* initial);
 	void deleteInitial(Initial* initial);
-	Initial* getBestChoice(IndexReader& reader);
+	Initial* getBestChoice(InMemoryIndexReader& reader);
 	set<Initial*>& getInitials();
-	double createNewInitials(Initial* initial, Blacklist* bl, set<Initial*> destination, IndexReader& reader);
+	double createNewInitials(Initial* initial, Blacklist* bl, InMemoryIndexReader& reader, set<Initial*>* destination=NULL);
 
 protected:
 	set<Initial*> initials;
@@ -80,16 +80,12 @@ void State::reduceDeltas(double gReduction, Blacklist* bl){
 	cout << "globalDelta: " << *globalDelta << endl;
 }
 
-void State::addInitial(Initial* initial){
-	initials.insert(initial);
-}
-
 void State::deleteInitial(Initial* initial){
 	delete initial;
 	initials.erase(initial);
 }
 
-Initial* State::getBestChoice(IndexReader& reader){
+Initial* State::getBestChoice(InMemoryIndexReader& reader){
 	Initial* result = NULL;
 	set<Initial*> toRemove;
 	set<Initial*> toAdd;
@@ -116,7 +112,7 @@ Initial* State::getBestChoice(IndexReader& reader){
 			if (value == -2){
 				Blacklist* bl = new Blacklist();
 				bl->setNext((*it)->getBlacklist());
-				createNewInitials((*it), bl, toAdd, reader);
+				createNewInitials((*it), bl, reader, &toAdd);
 				toRemove.insert((*it));
 				continue;
 			}
@@ -157,14 +153,22 @@ set<Initial*>& State::getInitials(){
 /**
  * Returns the new op value of the initials which have been created.
  */
-double State::createNewInitials(Initial* initial, Blacklist* bl, set<Initial*> destination, IndexReader& reader){
+double State::createNewInitials(Initial* initial, Blacklist* bl, InMemoryIndexReader& reader, set<Initial*>* destination){
+	if (destination == NULL){
+		destination = &initials;
+	}
 	Item& item = reader.getItemById(initial->getItemId());
+	int count=0;
 	int degree = item.getDegree();
+	if (initial->getItemTrail().size() == 1){
+		degree++;
+	}
 	double newOp = ((double) (1.0 / (degree -1))) * initial->getOP(); // degree reduced by origin
 	vector<int>& origins = initial->getItemTrail();
 	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
 	vector<int> propertyTrail = initial->getPropertyTrail();
+	cout << "start creating initials" << endl;
 	for (int i=0; i<stmtGrs.size(); i++){
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		vector<int>& targets = stmtGrs[i].getTargets();
@@ -175,15 +179,18 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, set<Initial*> d
 					valid = false;
 				}
 			}
+			count++;
 			if (valid){
 				itemTrail.push_back(targets[j]);
-				Initial* newInitial = new Initial(reader, targets[j], bl, newOp, 1.0 / ((1.0 / initial->getInpenalty()) +1), itemTrail, propertyTrail);
-				addInitial(newInitial);
+				double ip = (initial->getItemTrail().size() == 1) ? 1.0 : (1.0 / ((1.0 / initial->getInpenalty()) +1));
+				Initial* newInitial = new Initial(reader, targets[j], bl, newOp, ip, itemTrail, propertyTrail);
+				destination->insert(newInitial);
 				itemTrail.pop_back();
 			}
 		}
 		propertyTrail.pop_back();
 	}
+	cout << "finish creation of " << count << "initials" << endl;
 	return newOp;
 }
 
