@@ -50,7 +50,7 @@ void testAStarSearch() {
 	IndexReader reader(
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
-	TopKSearch tks(reader, 5);
+	TopKSearch tks(reader, 3);
 
 	tks.search(testItems[1]);
 

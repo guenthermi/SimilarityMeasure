@@ -13,7 +13,7 @@
 #include "datamodel/BinaryIndex.h"
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
 #include <fstream>
 #include <limits>
 #include <string>
@@ -55,7 +55,7 @@ protected:
 	void pushToCache(Item item);
 	void freeCache(int amount);
 
-	map<int, CacheLine*> cache;
+	unordered_map<int, CacheLine*> cache;
 
 	int minCacheUsage;
 	Item nullItem;
@@ -71,7 +71,7 @@ protected:
 
 IndexReader::IndexReader(string path){
 
-	cache = map<int, CacheLine*>();
+	cache = unordered_map<int, CacheLine*>();
 	minCacheUsage = 0;
 	cacheUsed = 0;
 	fileUsed = 0;
@@ -111,7 +111,7 @@ bool IndexReader::getNextItem(Item& item, bool caching){
 }
 
 Item& IndexReader::getItemById(int id){
-	map<int, CacheLine*>::iterator ii = cache.find(id);
+	unordered_map<int, CacheLine*>::iterator ii = cache.find(id);
 	if (ii != cache.end()){
 		cacheUsed++;
 		return cache[id]->entry;
@@ -160,7 +160,7 @@ void IndexReader::freeCache(int amount) {
 		int j = 0;
 		int inUseRate = 0;
 		while ((todo > 0) && (inUseRate < cacheFreeRate)) {
-			map<int, CacheLine*>::iterator ii;
+			unordered_map<int, CacheLine*>::iterator ii;
 			for (ii = cache.begin(); (ii != cache.end()) && (todo > 0); ++ii) {
 				if (ii->second->inUse){
 					inUseRate++;
