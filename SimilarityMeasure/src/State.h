@@ -13,6 +13,7 @@
 #include "IndexReader.h"
 #include "TopKSearch.h"
 #include "datamodel/TopKEntry.h"
+#include "TopK.h"
 
 #include<set>
 #include<iostream>
@@ -26,7 +27,7 @@ public:
 	const double kLevelFactor = 0.1;
 	const double kBufferVolume = 1000;
 
-	State(unordered_map<int, TopKEntry>* topK, double* globalDelta, double* topValue);
+	State(TopK* topK);
 	~State();
 	void deleteInitial(Initial* initial);
 	Initial* getBestChoice(IndexReader& reader);
@@ -37,47 +38,17 @@ protected:
 	set<Initial*> initials;
 	set<Initial*> buffer;
 	void freeInitials();
-	void reduceDeltas(double gReduction, Blacklist* bl);
 	double level;
-	unordered_map<int, TopKEntry>* topK;
-	double* globalDelta;
-	double* topValue;
+	TopK* topK;
 };
 
-State::State(unordered_map<int, TopKEntry>* topK, double* globalDelta, double* topValue){
+State::State(TopK* topK){
 	level = 0.1;
 	this->topK = topK;
-	this->globalDelta = globalDelta;
-	this->topValue = topValue;
 }
 
 State::~State(){
 	freeInitials();
-}
-
-void State::reduceDeltas(double gReduction, Blacklist* bl){
-	vector<int> toErase;
-
-	for (unordered_map<int, TopKEntry>::iterator it = topK->begin();
-			it != topK->end(); it++) {
-		TopKEntry& value = it->second;
-		if (bl){
-			if (!bl->hasItem(it->first)) {
-				value.delta -= gReduction;
-			}
-		}
-		if (value.delta < 0) {
-			cout << "################ FEHLER #####################" << endl;
-		}
-		if (value.delta < ((*topValue) - value.weight)) {
-			toErase.push_back(it->first);
-		}
-	}
-	for (size_t i = 0; i < toErase.size(); i++) {
-		topK->erase(toErase[i]);
-	}
-	(*globalDelta) -= gReduction;
-	cout << "globalDelta: " << *globalDelta << endl;
 }
 
 void State::deleteInitial(Initial* initial){
@@ -105,7 +76,7 @@ Initial* State::getBestChoice(IndexReader& reader){
 			double value = (*it)->getPenalty(&deltaReduce, level);
 			if (value == -1){
 				if (deltaReduce != 0){
-					reduceDeltas(deltaReduce, (*it)->getBlacklist());
+					topK->reduceDeltas(deltaReduce, (*it)->getBlacklist());
 				}
 				continue;
 			}

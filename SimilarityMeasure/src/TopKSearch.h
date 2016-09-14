@@ -15,6 +15,7 @@
 #include "State.h"
 #include "Initial.h"
 #include "datamodel/TopKEntry.h"
+#include "TopK.h"
 
 #include <vector>
 #include <map>
@@ -24,14 +25,9 @@
 class TopKSearch {
 public:
 
-	TopKSearch(IndexReader& reader);
+	TopKSearch(IndexReader& reader, int k);
 	~TopKSearch();
 
-	void updateTopK(map<int, double>* candidates, double gReduction,
-			double cReduction, Blacklist& bl);
-	unordered_map<int, TopKEntry>& getTopK();
-	int getBestMatch();
-	double getBestMatchValue();
 	void search(int itemId);
 	void processInitial(Initial* initial, State& state);
 	map<int, double>* hasSimilarity(vector<int> propertyTrail,
@@ -41,10 +37,7 @@ public:
 protected:
 
 	IndexReader& reader;
-	unordered_map<int, TopKEntry> topK;
-	int topId;
-	double topValue;
-	double globalDelta;
+	TopK topK;
 
 	void addItemToResult(map<int, double>* result, int itemId,
 			vector<int>& itemTrail, double weight, Blacklist* blacklist,
@@ -64,72 +57,16 @@ protected:
 
 };
 
-TopKSearch::TopKSearch(IndexReader& reader) :
-		reader(reader) {
-	topId = 0;
-	topValue = 0;
-	globalDelta = 1;
+TopKSearch::TopKSearch(IndexReader& reader, int k) :
+		reader(reader), topK(k) {
 }
 
 TopKSearch::~TopKSearch() {
 }
 
-void TopKSearch::updateTopK(map<int, double>* candidates, double gReduction,
-		double cReduction, Blacklist& bl) {
-	cout << "cReduce: " << cReduction << " gReduce: " << gReduction << " candidates size: " << candidates->size() << endl;
-	for (map<int, double>::iterator it = candidates->begin();
-			it != candidates->end(); it++) {
-		TopKEntry& value = topK[it->first];
-		value.weight += it->second;
-		if (value.delta == 0) {
-			value.delta = globalDelta;
-		}
-		value.delta -= cReduction;
-		if (value.weight > topValue) {
-			topValue = value.weight;
-			topId = it->first;
-		}
-	}
-
-	vector<int> toErase;
-
-	for (unordered_map<int, TopKEntry>::iterator it = topK.begin();
-			it != topK.end(); it++) {
-		TopKEntry& value = it->second;
-		if (!bl.hasItem(it->first)) {
-			value.delta -= gReduction;
-		}
-		if (value.delta < 0) {
-			cout << "################ FEHLER #####################" << endl;
-		}
-		if (value.delta < (topValue - value.weight)) {
-			if (topId == it->first){
-				cout << "####Problem:" << endl;
-			}
-			toErase.push_back(it->first);
-		}
-	}
-	for (size_t i = 0; i < toErase.size(); i++) {
-		topK.erase(toErase[i]);
-	}
-	globalDelta -= gReduction;
-}
-
-unordered_map<int, TopKEntry>& TopKSearch::getTopK() {
-	return topK;
-}
-
-int TopKSearch::getBestMatch() {
-	return topId;
-}
-
-double TopKSearch::getBestMatchValue() {
-	return topValue;
-}
-
 void TopKSearch::search(int itemId) {
 
-	State state(&topK, &globalDelta, &topValue);
+	State state(&topK);
 
 	vector<int> itemTrail;
 	itemTrail.push_back(itemId);
@@ -141,7 +78,7 @@ void TopKSearch::search(int itemId) {
 
 	cout << "#Initials= " << state.getInitials().size() << endl;
 
-	int maxIteration = 10000;
+	int maxIteration = 8;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
@@ -150,18 +87,18 @@ void TopKSearch::search(int itemId) {
 		Initial* init = state.getBestChoice(reader);
 		processInitial(init, state);
 		state.deleteInitial(init);
-		terminate = ((globalDelta < topValue) && (topK.size() == 1));
+		terminate = topK.hasConverged();
 	}
+
 	cout << "initial size: " << state.getInitials().size() << endl;
-	cout << topId << ": " << topValue << endl;
-	cout << "TOP K Size: " << topK.size() << " terminate:  " << terminate
-			<< " Global Delta: " << globalDelta <<  " Top Delta: " << ((topK.size() > 1) ? topK[topId].delta : 0) << endl;
+	cout << "score table size: " << topK.getContentsSize() << " terminate:  " << terminate
+			<< " Global Delta: " << topK.getGlobalDelta() << endl;
+	topK.printTopK();
 }
 
 void TopKSearch::processInitial(Initial* initial, State& state) {
 	Blacklist* bl = new Blacklist();
 	bl->setNext(initial->getBlacklist());
-	cout << "HERE" << endl;
 	// create new initials
 	double newOp = state.createNewInitials(initial, bl, reader);
 
@@ -176,7 +113,7 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
 		double candidatesReduce = oldOp * oldIp;
 		double allReduce = candidatesReduce -  (oldOp * ( 1.0 / ( (double) ip + 1.0 )));
 		cout << "new OP: " << newOp <<  " --> allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
-		updateTopK(candidates, allReduce, candidatesReduce, *bl);
+		topK.updateTopK(candidates, allReduce, candidatesReduce, *bl);
 	}else{
 		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << " --> candidates size == 0" << endl;
 	}
