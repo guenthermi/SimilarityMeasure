@@ -9,7 +9,7 @@
 #define INITIAL_H_
 
 #include "datamodel/Item.h"
-#include "InMemoryIndexReader.h"
+#include "IndexReader.h"
 
 
 #include <vector>
@@ -17,7 +17,7 @@
 
 class Initial {
 public:
-	Initial(InMemoryIndexReader& reader, int itemId, Blacklist* bl, double op,
+	Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 			double baseIp, vector<int> itemTrail, vector<int> propertyTrail);
 	~Initial();
 	double computePenalty(double* deltaReduce, Item* item = NULL, double minIp = 0);
@@ -41,7 +41,7 @@ protected:
 	Blacklist* blacklist;
 	int itemId;
 
-	InMemoryIndexReader& reader;
+	IndexReader& reader;
 
 	// computed values
 	double ipMin;
@@ -51,7 +51,7 @@ protected:
 
 };
 
-Initial::Initial(InMemoryIndexReader& reader, int itemId, Blacklist* bl, double op,
+Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 		double baseIp, vector<int> itemTrail, vector<int> propertyTrail) :
 		reader(reader) {
 	this->op = op;

@@ -10,7 +10,7 @@
 
 #include "Initial.h"
 #include "Blacklist.h"
-#include "InMemoryIndexReader.h"
+#include "IndexReader.h"
 #include "TopKSearch.h"
 #include "datamodel/TopKEntry.h"
 
@@ -29,9 +29,9 @@ public:
 	State(unordered_map<int, TopKEntry>* topK, double* globalDelta, double* topValue);
 	~State();
 	void deleteInitial(Initial* initial);
-	Initial* getBestChoice(InMemoryIndexReader& reader);
+	Initial* getBestChoice(IndexReader& reader);
 	set<Initial*>& getInitials();
-	double createNewInitials(Initial* initial, Blacklist* bl, InMemoryIndexReader& reader, set<Initial*>* destination=NULL);
+	double createNewInitials(Initial* initial, Blacklist* bl, IndexReader& reader, set<Initial*>* destination=NULL);
 
 protected:
 	set<Initial*> initials;
@@ -85,7 +85,7 @@ void State::deleteInitial(Initial* initial){
 	initials.erase(initial);
 }
 
-Initial* State::getBestChoice(InMemoryIndexReader& reader){
+Initial* State::getBestChoice(IndexReader& reader){
 	Initial* result = NULL;
 	set<Initial*> toRemove;
 	set<Initial*> toAdd;
@@ -153,7 +153,7 @@ set<Initial*>& State::getInitials(){
 /**
  * Returns the new op value of the initials which have been created.
  */
-double State::createNewInitials(Initial* initial, Blacklist* bl, InMemoryIndexReader& reader, set<Initial*>* destination){
+double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& reader, set<Initial*>* destination){
 	if (destination == NULL){
 		destination = &initials;
 	}

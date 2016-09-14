@@ -1,12 +1,12 @@
 /*
- * InMemoryIndexReader.h
+ * IndexReader.h
  *
  *  Created on: 10.06.2016
  *      Author: michael
  */
 
-#ifndef INMEMORYINDEXREADER_H_
-#define INMEMORYINDEXREADER_H_
+#ifndef INDEXREADER_H_
+#define INDEXREADER_H_
 
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
@@ -22,14 +22,14 @@
 
 using namespace std;
 
-class InMemoryIndexReader{
+class IndexReader{
 public:
 
 	int cacheSize = 1000000;
 	static const int cacheFreeRate = 100000;
 
-	InMemoryIndexReader(string path);
-	~InMemoryIndexReader();
+	IndexReader(string path);
+	~IndexReader();
 
 	void jumpToBegin();
 	bool hasNextItem();
@@ -69,7 +69,7 @@ protected:
 	Item current;
 };
 
-InMemoryIndexReader::InMemoryIndexReader(string path){
+IndexReader::IndexReader(string path){
 
 	cache = map<int, CacheLine*>();
 	minCacheUsage = 0;
@@ -84,11 +84,11 @@ InMemoryIndexReader::InMemoryIndexReader(string path){
 	cout << "Index is loaded" << endl;
 }
 
-InMemoryIndexReader::~InMemoryIndexReader(){
+IndexReader::~IndexReader(){
 
 }
 
-bool InMemoryIndexReader::hasNextItem(){
+bool IndexReader::hasNextItem(){
 	if (!readIt){
 		return true;
 	}
@@ -101,7 +101,7 @@ bool InMemoryIndexReader::hasNextItem(){
 	}
 }
 
-bool InMemoryIndexReader::getNextItem(Item& item, bool caching){
+bool IndexReader::getNextItem(Item& item, bool caching){
 	readIt = true;
 	if (caching){
 		pushToCache(current);
@@ -110,7 +110,7 @@ bool InMemoryIndexReader::getNextItem(Item& item, bool caching){
 	return true;
 }
 
-Item& InMemoryIndexReader::getItemById(int id){
+Item& IndexReader::getItemById(int id){
 	map<int, CacheLine*>::iterator ii = cache.find(id);
 	if (ii != cache.end()){
 		cacheUsed++;
@@ -126,29 +126,29 @@ Item& InMemoryIndexReader::getItemById(int id){
 
 }
 
-void InMemoryIndexReader::jumpToBegin(){
+void IndexReader::jumpToBegin(){
 	pos = 0;
 	readIt = true;
 	current = Item();
 }
 
-void InMemoryIndexReader::setInUseFlag(int id){
+void IndexReader::setInUseFlag(int id){
 //	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
 	cache[id]->inUse = true;
 }
 
-void InMemoryIndexReader::unsetInUseFlag(int id){
+void IndexReader::unsetInUseFlag(int id){
 	cache[id]->inUse = false;
 }
 
-void InMemoryIndexReader::pushToCache(Item item) {
+void IndexReader::pushToCache(Item item) {
 	if (cache.size() >= cacheSize) {
 		freeCache(cacheFreeRate);
 	}
 	cache[item.getId()] = new CacheLine(item);
 }
 
-void InMemoryIndexReader::freeCache(int amount) {
+void IndexReader::freeCache(int amount) {
 	if (amount < 0) {
 		cache.clear();
 	} else {
@@ -194,4 +194,4 @@ void InMemoryIndexReader::freeCache(int amount) {
 }
 
 
-#endif /* INMEMORYINDEXREADER_H_ */
+#endif /* INDEXREADER_H_ */

@@ -6,18 +6,18 @@
  */
 
 #include "datamodel/Item.h"
-#include "InMemoryIndexReader.h"
+#include "IndexReader.h"
 #include "TopKSearch.h"
-#include "InMemoryIndexReader.h"
+#include "IndexReader.h"
 #include "WebApi.h"
 
 #include <iostream>
 
 using namespace std;
 
-void testInMemoryIndexReader(){
-	cout << "Start Testing - InMemoryIndexReader" << endl;
-	InMemoryIndexReader reader(
+void testIndexReader(){
+	cout << "Start Testing - IndexReader" << endl;
+	IndexReader reader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 	Item* item;
 	for (int i=0; i<1000; i++){
@@ -29,7 +29,7 @@ void testInMemoryIndexReader(){
 			<< item->getStatementGroups()[0].getPropertyId() << " -- "
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
-	cout << "Complete InMemoryIndexReader Test" << endl << endl;
+	cout << "Complete IndexReader Test" << endl << endl;
 }
 
 void testAStarSearch() {
@@ -47,7 +47,7 @@ void testAStarSearch() {
 	};
 
 	cout << "Start Testing - AStarSearch" << endl;
-	InMemoryIndexReader reader(
+	IndexReader reader(
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
 	TopKSearch tks(reader);

@@ -8,7 +8,7 @@
 #ifndef TOPKSEARCH_H_
 #define TOPKSEARCH_H_
 
-#include "InMemoryIndexReader.h"
+#include "IndexReader.h"
 #include "datamodel/Item.h"
 #include "datamodel/StatementGroup.h"
 #include "Blacklist.h"
@@ -24,7 +24,7 @@
 class TopKSearch {
 public:
 
-	TopKSearch(InMemoryIndexReader& reader);
+	TopKSearch(IndexReader& reader);
 	~TopKSearch();
 
 	void updateTopK(map<int, double>* candidates, double gReduction,
@@ -40,7 +40,7 @@ public:
 
 protected:
 
-	InMemoryIndexReader& reader;
+	IndexReader& reader;
 	unordered_map<int, TopKEntry> topK;
 	int topId;
 	double topValue;
@@ -64,7 +64,7 @@ protected:
 
 };
 
-TopKSearch::TopKSearch(InMemoryIndexReader& reader) :
+TopKSearch::TopKSearch(IndexReader& reader) :
 		reader(reader) {
 	topId = 0;
 	topValue = 0;
