@@ -20,35 +20,36 @@ using namespace std;
 class Item {
 public:
 	Item();
-	Item(int qId);
-	Item(int qId, vector<StatementGroup>& stmtGrs);
-	void pushStmtGr(StatementGroup stmtGr);
-	vector<StatementGroup>& getStatementGroups();
+	Item(int qId, int size);
+	Item(int qId, StatementGroup* stmtGrs, int size);
+	StatementGroup* getStatementGroups();
 	void setId(int id);
 	int getId();
 	int getDegree();
 	string toString();
-	void sortStmtGrsBySize();
+	int size();
 	void clear();
 protected:
 	int qId;
-	vector<StatementGroup> stmtGrs;
-
-	static bool cmp(StatementGroup& a, StatementGroup& b);
+	int sz;
+	StatementGroup* stmtGrs;
 };
 
 Item::Item() {
 	this->qId = 0;
-	this->stmtGrs = vector<StatementGroup>();
+	this->sz = 0;
+	this->stmtGrs = NULL;
 }
 
-Item::Item(int qId) {
+Item::Item(int qId, int size) {
 	this->qId = qId;
-	this->stmtGrs = vector<StatementGroup>();
+	this->sz = size;
+	this->stmtGrs = new StatementGroup[size];
 }
 
-Item::Item(int qId, vector<StatementGroup>& stmtGrs) {
+Item::Item(int qId, StatementGroup* stmtGrs, int size) {
 	this->qId = qId;
+	this->sz = size;
 	this->stmtGrs = stmtGrs;
 }
 
@@ -57,11 +58,7 @@ Item::Item(int qId, vector<StatementGroup>& stmtGrs) {
 //	this->stmtGrs = item.stmtGrs;
 //}
 
-void Item::pushStmtGr(StatementGroup stmtGr) {
-	stmtGrs.push_back(stmtGr);
-}
-
-vector<StatementGroup>& Item::getStatementGroups() {
+StatementGroup* Item::getStatementGroups() {
 	return stmtGrs;
 }
 
@@ -75,7 +72,7 @@ void Item::setId(int id) {
 
 int Item::getDegree() {
 	int result = 0;
-	for (int i = 0; i < stmtGrs.size(); i++) {
+	for (int i = 0; i < sz; i++) {
 		result += stmtGrs[i].size();
 	}
 	return result;
@@ -85,7 +82,7 @@ string Item::toString() {
 	stringstream ss;
 	ss << "Q" << qId << ": " << endl;
 
-	for (int i = 0; i < stmtGrs.size(); i++) {
+	for (int i = 0; i < sz; i++) {
 		ss << "\tP" << stmtGrs[i].getPropertyId() << ": ";
 		for (int j = 0; j < stmtGrs[i].size(); j++) {
 			ss << "Q" << stmtGrs[i].getTargets()[j];
@@ -99,18 +96,17 @@ string Item::toString() {
 	return ss.str();
 }
 
-void Item::sortStmtGrsBySize() {
-	sort(stmtGrs.begin(), stmtGrs.end(), cmp);
+int Item::size(){
+	return sz;
 }
 
 void Item::clear(){
-	for (int i=0; i<stmtGrs.size(); i++){
+	for (int i=0; i<sz; i++){
 		stmtGrs[i].clear();
 	}
-}
-
-bool Item::cmp(StatementGroup& a, StatementGroup& b) {
-	return (a.size() < b.size());
+	if (stmtGrs != NULL){
+		delete[] stmtGrs;
+	}
 }
 
 #endif /* ITEM_H_ */

@@ -98,17 +98,18 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		return -1;
 	}
 
-	vector<int> inUse;
+	vector<bool*> inUse;
 	if (item == NULL) {
-		item = &reader.getItemById(itemId);
+		bool* flag;
+		item = &reader.getItemById(itemId, flag);
 		if (item->getId() == 0) {
 			ipMin = 0;
 			inpenaltyAvailable = true;
 			cout << "should not get here" << endl;
 			return 0;
 		}
-		reader.setInUseFlag(itemId);
-		inUse.push_back(itemId);
+		*flag = true;
+		inUse.push_back(flag);
 	}
 	int resultNumber = 0;
 	vector<StatementGroup*> searchTrailTargets;
@@ -121,7 +122,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		cout << "ERROR: should not get here" << endl;
 		// unset inUse flags
 		for (size_t i = 0; i < inUse.size(); i++) {
-			reader.unsetInUseFlag(inUse[i]);
+			*inUse[i] = false;
 		}
 		ipMin = 0;
 		inpenaltyAvailable = true;
@@ -136,9 +137,10 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 					// go one layer deeper
 				int id =
 						(*searchTrailTargets.back()).getTargets()[searchTrailPositions.back()];
-				Item& nextItem = reader.getItemById(id);
-				reader.setInUseFlag(id);
-				inUse.push_back(id);
+				bool* flag;
+				Item& nextItem = reader.getItemById(id, flag);
+				*flag = true;
+				inUse.push_back(flag);
 
 				searchTrailPositions.back()++;int
 				propertyTrailPosition = propertyTrail.size()
@@ -160,7 +162,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 					}
 					// unset inUse flags
 					for (size_t i = 0; i < inUse.size(); i++) {
-						reader.unsetInUseFlag(inUse[i]);
+						*inUse[i] = false;
 					}
 					return -1;
 				}
@@ -176,7 +178,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 
 	// unset inUse flags
 	for (size_t i = 0; i < inUse.size(); i++) {
-		reader.unsetInUseFlag(inUse[i]);
+		*inUse[i] = false;
 	}
 	if (resultNumber == 0) {
 		cout << "result number = 0. This should not happen" << endl;
@@ -202,8 +204,8 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 
 void Initial::extendTrails(vector<int>& searchTrailPositions,
 		vector<StatementGroup*>& searchTrailTargets, Item& item, int propertyId) {
-	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
-	for (size_t i = 0; i < stmtGrs.size(); i++) {
+	StatementGroup* stmtGrs = item.getStatementGroups();
+	for (size_t i = 0; i < item.size(); i++) {
 		if (stmtGrs[i].getPropertyId() == -propertyId) {
 			searchTrailTargets.push_back(&stmtGrs[i]); // evt. & weglassen
 		}

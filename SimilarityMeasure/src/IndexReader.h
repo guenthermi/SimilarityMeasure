@@ -35,6 +35,7 @@ public:
 	bool hasNextItem();
 	bool getNextItem(Item& item, bool caching);
 	Item& getItemById(int id);
+	Item& getItemById(int id, bool*& inUse);
 	void setInUseFlag(int id);
 	void unsetInUseFlag(int id);
 
@@ -46,6 +47,7 @@ protected:
 		CacheLine(Item item) :
 				entry(item) {
 			usage = 0;
+			inUse = false;
 		}
 		~CacheLine(){
 			entry.clear();
@@ -55,8 +57,17 @@ protected:
 		bool inUse;
 	};
 
-	void pushToCache(Item item);
 	void freeCache(int amount);
+
+	CacheLine* pushToCache(Item item){
+		if (cache.size() >= cacheSize) {
+			freeCache(cacheFreeRate);
+		}
+		CacheLine* line = new CacheLine(item);
+		cache[item.getId()] = line;
+		return line;
+	};
+
 
 	unordered_map<int, CacheLine*> cache;
 
@@ -79,7 +90,7 @@ IndexReader::IndexReader(string path){
 	minCacheUsage = 0;
 	cacheUsed = 0;
 	fileUsed = 0;
-	nullItem = Item(0);
+	nullItem = Item();
 
 	pos = 0;
 	readIt = true;
@@ -118,13 +129,31 @@ Item& IndexReader::getItemById(int id){
 	unordered_map<int, CacheLine*>::iterator ii = cache.find(id);
 	if (ii != cache.end()){
 		cacheUsed++;
-		return cache[id]->entry;
+		return ii->second->entry;
 	}
 	fileUsed++;
 	Item item = index.getItem(id);
 	if (item.getId() != 0){
 		pushToCache(item);
 		return cache[id]->entry;
+	}
+	return nullItem;
+
+}
+
+Item& IndexReader::getItemById(int id, bool*& inUse){
+	unordered_map<int, CacheLine*>::iterator ii = cache.find(id);
+	if (ii != cache.end()){
+		cacheUsed++;
+		inUse = &ii->second->inUse;
+		return ii->second->entry;
+	}
+	fileUsed++;
+	Item item = index.getItem(id);
+	if (item.getId() != 0){
+		CacheLine* line = pushToCache(item);
+		inUse = &line->inUse;
+		return line->entry;
 	}
 	return nullItem;
 
@@ -145,13 +174,6 @@ void IndexReader::setInUseFlag(int id){
 void IndexReader::unsetInUseFlag(int id){
 	cache[id]->inUse = false;
 	inUse--;
-}
-
-void IndexReader::pushToCache(Item item) {
-	if (cache.size() >= cacheSize) {
-		freeCache(cacheFreeRate);
-	}
-	cache[item.getId()] = new CacheLine(item);
 }
 
 void IndexReader::freeCache(int amount) {

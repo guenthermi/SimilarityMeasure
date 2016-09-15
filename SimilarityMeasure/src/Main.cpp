@@ -6,14 +6,31 @@
  */
 
 #include "datamodel/Item.h"
+#include "datamodel/TopKEntry.h"
 #include "IndexReader.h"
 #include "TopKSearch.h"
 #include "IndexReader.h"
 #include "WebApi.h"
 
 #include <iostream>
+#include <unordered_map>
+#include <string>
 
 using namespace std;
+
+void printTopK(unordered_map<int, TopKEntry> top, WebApi* api){
+	cout << "TOP K:" << endl;
+	for (unordered_map<int, TopKEntry>::iterator it = top.begin(); it != top.end(); it++){
+		string name = "Q" + std::to_string(it->first);
+		if (api != NULL){
+			string label = api->getLabelById(it->first);
+			if (label != ""){
+				name = label + "(Q" + std::to_string(it->first) + ")";
+			}
+		}
+		cout << "\t" << "(" << it->second.weight << " ; " << it->second.delta << ") \t: " << name  << endl;
+	}
+}
 
 void testIndexReader(){
 	cout << "Start Testing - IndexReader" << endl;
@@ -52,7 +69,11 @@ void testAStarSearch() {
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
 	TopKSearch tks(reader, 3);
-	tks.search(testItems[1]);
+
+	WebApi api;
+
+	unordered_map<int, TopKEntry> top = tks.search(testItems[5]);
+	printTopK(top, &api);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }

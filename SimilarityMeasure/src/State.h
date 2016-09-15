@@ -149,11 +149,11 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& re
 	}
 	double newOp = ((double) (1.0 / (degree -1))) * initial->getOP(); // degree reduced by origin
 	vector<int>& origins = initial->getItemTrail();
-	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
+	StatementGroup* stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
 	vector<int> propertyTrail = initial->getPropertyTrail();
 	cout << "start creating initials" << endl;
-	for (int i=0; i<stmtGrs.size(); i++){
+	for (int i=0; i<item.size(); i++){
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		int* targets = stmtGrs[i].getTargets();
 		for (int j=0; j<stmtGrs[i].size(); j++){

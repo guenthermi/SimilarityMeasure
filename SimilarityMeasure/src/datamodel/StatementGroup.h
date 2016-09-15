@@ -15,16 +15,24 @@ using namespace std;
 
 class StatementGroup {
 public:
+	StatementGroup();
 	StatementGroup(int pId, int size);
 	int getPropertyId();
 	int* getTargets();
 	int size();
 	void clear();
+	void reallocate(int pId, int size, int* targets);
 protected:
 	int pId;
 	int sz;
 	int* targets;
 };
+
+StatementGroup::StatementGroup(){
+	this->pId = 0;
+	this->sz = 0;
+	this->targets = NULL;
+}
 
 StatementGroup::StatementGroup(int pId, int size) {
 	this->pId = pId;
@@ -46,6 +54,12 @@ int StatementGroup::size(){
 
 void StatementGroup::clear(){
 	delete[] targets;
+}
+
+void StatementGroup::reallocate(int pId, int size, int* targets){
+	this->pId = pId;
+	this->sz = size;
+	this->targets = targets;
 }
 
 #endif /* STATEMENTGROUP_H_ */

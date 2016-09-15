@@ -23,9 +23,9 @@ using namespace std;
 class Parser {
 public:
 	Parser();
-	Item parseItem(string& line);
-	Item parsePureItem(int id, string& line);
-	Item parseBinaryItem(int id, ifstream& file);
+//	Item parseItem(string& line);
+//	Item parsePureItem(int id, string& line);
+//	Item parseBinaryItem(int id, ifstream& file);
 	Item parseInMemoryItem(int id, int pos, int* data);
 	int* parsePropertyCount(string& line);
 protected:
@@ -55,78 +55,79 @@ Parser::Parser() {
 
 }
 
-Item Parser::parseItem(string& line) {
-	vector<string> splits;
-	split(line, ';', splits);
-	int itemId = atoi(splits[0].c_str());
-	Item item = Item(itemId);
-	for (size_t i = 1; i < splits.size(); i++) {
-		vector<int> stmtgr;
-		splitInts(splits[i], ',', stmtgr);
-		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
-		int* targets = statementGroup.getTargets();
-		size_t j;
-		for (j = 1; j < stmtgr.size(); j++) {
-			targets[j-1] = stmtgr[j];
-		}
-		item.pushStmtGr(statementGroup);
-	}
-
-	return item;
-}
-
-Item Parser::parsePureItem(int id, string& line){
-	vector<string> splits;
-	split(line, ';', splits);
-	Item item(id);
-	for (size_t i = 0; i < splits.size(); i++){
-		vector<int> stmtgr;
-		splitInts(splits[i], ',', stmtgr);
-		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
-		int* targets = statementGroup.getTargets();
-		size_t j;
-		for (j=1; j<stmtgr.size(); j++){
-			targets[j-1] = stmtgr[j];
-		}
-		item.pushStmtGr(statementGroup);
-	}
-
-	return item;
-}
-
-Item Parser::parseBinaryItem(int id, ifstream& file){
-	Item item(id);
-	int stmtGrsCount;
-	file.read((char*) &stmtGrsCount, sizeof(stmtGrsCount));
-	for (int i=0; i<stmtGrsCount; i++){
-		int pId;
-		file.read((char*) &pId, sizeof(pId));
-		int size;
-		file.read((char*) &size, sizeof(size));
-		StatementGroup stmtGr(pId, size);
-		int* targets = stmtGr.getTargets();
-		for (int j=0; j< size; j++){
-			int target;
-			file.read((char*) &target, sizeof(target));
-			targets[j] = target;
-		}
-		item.pushStmtGr(stmtGr);
-	}
-	return item;
-}
+//Item Parser::parseItem(string& line) {
+//	vector<string> splits;
+//	split(line, ';', splits);
+//	int itemId = atoi(splits[0].c_str());
+//	Item item = Item(itemId);
+//	for (size_t i = 1; i < splits.size(); i++) {
+//		vector<int> stmtgr;
+//		splitInts(splits[i], ',', stmtgr);
+//		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
+//		int* targets = statementGroup.getTargets();
+//		size_t j;
+//		for (j = 1; j < stmtgr.size(); j++) {
+//			targets[j-1] = stmtgr[j];
+//		}
+//		item.pushStmtGr(statementGroup);
+//	}
+//
+//	return item;
+//}
+//
+//Item Parser::parsePureItem(int id, string& line){
+//	vector<string> splits;
+//	split(line, ';', splits);
+//	Item item(id);
+//	for (size_t i = 0; i < splits.size(); i++){
+//		vector<int> stmtgr;
+//		splitInts(splits[i], ',', stmtgr);
+//		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
+//		int* targets = statementGroup.getTargets();
+//		size_t j;
+//		for (j=1; j<stmtgr.size(); j++){
+//			targets[j-1] = stmtgr[j];
+//		}
+//		item.pushStmtGr(statementGroup);
+//	}
+//
+//	return item;
+//}
+//
+//Item Parser::parseBinaryItem(int id, ifstream& file){
+//	int stmtGrsCount;
+//	Item item(id, stmtGrsCount);
+//	file.read((char*) &stmtGrsCount, sizeof(stmtGrsCount));
+//	for (int i=0; i<stmtGrsCount; i++){
+//		int pId;
+//		file.read((char*) &pId, sizeof(pId));
+//		int size;
+//		file.read((char*) &size, sizeof(size));
+//		StatementGroup stmtGr(pId, size);
+//		int* targets = stmtGr.getTargets();
+//		for (int j=0; j< size; j++){
+//			int target;
+//			file.read((char*) &target, sizeof(target));
+//			targets[j] = target;
+//		}
+//		item.pushStmtGr(stmtGr);
+//	}
+//	return item;
+//}
 
 Item Parser::parseInMemoryItem(int id, int pos, int* data){
-	Item result(id);
 	int stmtGrSize = data[pos++];
+	Item result(id, stmtGrSize);
 	for (int i=0; i < stmtGrSize; i++){
 		int pId = data[pos++];
 		int size = data[pos++];
-		StatementGroup stmtGr(pId, size);
-		int* targets = stmtGr.getTargets();
+		int* targets = new int[size];
+		result.getStatementGroups()[i].reallocate(pId, size, targets);
+		StatementGroup& stmtGr = result.getStatementGroups()[i];
+		 stmtGr.getTargets();
 		for (int j=0; j < size; j++){
 			targets[j] = data[pos++];
 		}
-		result.pushStmtGr(stmtGr);
 	}
 	return result;
 }

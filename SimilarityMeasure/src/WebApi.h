@@ -59,7 +59,7 @@ int WebApi::getIdByLabel(string label) {
 
 size_t WebApi::write_data(char *ptr, size_t size, size_t nmemb,
 		string *userdata) {
-	cout << baseUrl;
+//	cout << baseUrl;
 	(*userdata) += ptr;
 	return size * nmemb;
 }
