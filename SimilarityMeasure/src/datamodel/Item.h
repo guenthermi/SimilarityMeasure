@@ -29,6 +29,7 @@ public:
 	int getDegree();
 	string toString();
 	void sortStmtGrsBySize();
+	void clear();
 protected:
 	int qId;
 	vector<StatementGroup> stmtGrs;
@@ -100,6 +101,12 @@ string Item::toString() {
 
 void Item::sortStmtGrsBySize() {
 	sort(stmtGrs.begin(), stmtGrs.end(), cmp);
+}
+
+void Item::clear(){
+	for (int i=0; i<stmtGrs.size(); i++){
+		stmtGrs[i].clear();
+	}
 }
 
 bool Item::cmp(StatementGroup& a, StatementGroup& b) {

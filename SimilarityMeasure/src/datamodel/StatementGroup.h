@@ -19,6 +19,7 @@ public:
 	int getPropertyId();
 	int* getTargets();
 	int size();
+	void clear();
 protected:
 	int pId;
 	int sz;
@@ -41,6 +42,10 @@ int* StatementGroup::getTargets() {
 
 int StatementGroup::size(){
 	return sz;
+}
+
+void StatementGroup::clear(){
+	delete[] targets;
 }
 
 #endif /* STATEMENTGROUP_H_ */

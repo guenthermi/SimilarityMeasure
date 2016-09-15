@@ -30,7 +30,7 @@ public:
 	State(TopK* topK);
 	~State();
 	void deleteInitial(Initial* initial);
-	Initial* getBestChoice(IndexReader& reader);
+	Initial* getBestChoice(IndexReader& reader, int& iterationCount, int& maxIteration);
 	set<Initial*>& getInitials();
 	double createNewInitials(Initial* initial, Blacklist* bl, IndexReader& reader, set<Initial*>* destination=NULL);
 
@@ -56,7 +56,7 @@ void State::deleteInitial(Initial* initial){
 	initials.erase(initial);
 }
 
-Initial* State::getBestChoice(IndexReader& reader){
+Initial* State::getBestChoice(IndexReader& reader, int& iterationCount, int& maxIteration){
 	Initial* result = NULL;
 	set<Initial*> toRemove;
 	set<Initial*> toAdd;
@@ -77,6 +77,12 @@ Initial* State::getBestChoice(IndexReader& reader){
 			if (value == -1){
 				if (deltaReduce != 0){
 					topK->reduceDeltas(deltaReduce, (*it)->getBlacklist());
+					iterationCount++;
+					cout << "IterationD: " << iterationCount << endl;
+				}
+
+				if (iterationCount > maxIteration){
+					return NULL;
 				}
 				continue;
 			}
@@ -85,6 +91,12 @@ Initial* State::getBestChoice(IndexReader& reader){
 				bl->setNext((*it)->getBlacklist());
 				createNewInitials((*it), bl, reader, &toAdd);
 				toRemove.insert((*it));
+				iterationCount++;
+				cout << "Iteration0: " << iterationCount << endl;
+				if (iterationCount > maxIteration){
+					cout << "get there" << endl;
+					return NULL;
+				}
 				continue;
 			}
 			if (value != -1){
@@ -128,6 +140,7 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& re
 	if (destination == NULL){
 		destination = &initials;
 	}
+
 	Item& item = reader.getItemById(initial->getItemId());
 	int count=0;
 	int degree = item.getDegree();

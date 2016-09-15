@@ -47,6 +47,9 @@ protected:
 				entry(item) {
 			usage = 0;
 		}
+		~CacheLine(){
+			entry.clear();
+		}
 		unsigned char usage;
 		Item entry;
 		bool inUse;

@@ -52,8 +52,7 @@ void testAStarSearch() {
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
 	TopKSearch tks(reader, 3);
-
-	tks.search(testItems[7]);
+	tks.search(testItems[1]);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }

@@ -78,13 +78,16 @@ void TopKSearch::search(int itemId) {
 
 	cout << "#Initials= " << state.getInitials().size() << endl;
 
-	int maxIteration = 200;
+	int maxIteration = 2500;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
+		Initial* init = state.getBestChoice(reader, iteration, maxIteration);
+		if (init == NULL){
+			break;
+		}
 		iteration++;
 		cout << "Iteration: " << iteration << endl;
-		Initial* init = state.getBestChoice(reader);
 		processInitial(init, state);
 		state.deleteInitial(init);
 		terminate = topK.hasConverged();
