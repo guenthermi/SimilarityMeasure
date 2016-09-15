@@ -75,7 +75,7 @@ void Item::setId(int id) {
 int Item::getDegree() {
 	int result = 0;
 	for (int i = 0; i < stmtGrs.size(); i++) {
-		result += stmtGrs[i].getTargets().size();
+		result += stmtGrs[i].size();
 	}
 	return result;
 }
@@ -86,9 +86,9 @@ string Item::toString() {
 
 	for (int i = 0; i < stmtGrs.size(); i++) {
 		ss << "\tP" << stmtGrs[i].getPropertyId() << ": ";
-		for (int j = 0; j < stmtGrs[i].getTargets().size(); j++) {
+		for (int j = 0; j < stmtGrs[i].size(); j++) {
 			ss << "Q" << stmtGrs[i].getTargets()[j];
-			if (j < (stmtGrs[i].getTargets().size() - 1)) {
+			if (j < (stmtGrs[i].size() - 1)) {
 				ss << ", ";
 			}
 		}
@@ -103,7 +103,7 @@ void Item::sortStmtGrsBySize() {
 }
 
 bool Item::cmp(StatementGroup& a, StatementGroup& b) {
-	return (a.getTargets().size() < b.getTargets().size());
+	return (a.size() < b.size());
 }
 
 #endif /* ITEM_H_ */

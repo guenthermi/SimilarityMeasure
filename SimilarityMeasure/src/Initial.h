@@ -33,7 +33,7 @@ public:
 protected:
 
 	void extendTrails(vector<int>& searchTrailPositions,
-			vector<vector<int>*>& searchTrailTargets, Item& item,
+			vector<StatementGroup*>& searchTrailTargets, Item& item,
 			int propertyId); // TODO share with AStarSearch
 
 	// initial values
@@ -72,7 +72,7 @@ double Initial::getInpenalty() {
 		return ipMin;
 	}else{
 		if (itemTrail.size() == 1){
-			ipMin = 1;
+			ipMin = 0;
 			inpenaltyAvailable = true;
 			return ipMin;
 		}
@@ -111,7 +111,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		inUse.push_back(itemId);
 	}
 	int resultNumber = 0;
-	vector<vector<int>*> searchTrailTargets;
+	vector<StatementGroup*> searchTrailTargets;
 	vector<int> searchTrailPositions;
 
 	extendTrails(searchTrailPositions, searchTrailTargets, *item,
@@ -135,7 +135,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 					< searchTrailTargets.back()->size()) { // still elements on this layer
 					// go one layer deeper
 				int id =
-						(*searchTrailTargets.back())[searchTrailPositions.back()];
+						(*searchTrailTargets.back()).getTargets()[searchTrailPositions.back()];
 				Item& nextItem = reader.getItemById(id);
 				reader.setInUseFlag(id);
 				inUse.push_back(id);
@@ -158,6 +158,10 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 					if (deltaReduce){
 						(*deltaReduce) = (oldIpMin - ipMin)*op;
 					}
+					// unset inUse flags
+					for (size_t i = 0; i < inUse.size(); i++) {
+						reader.unsetInUseFlag(inUse[i]);
+					}
 					return -1;
 				}
 			}
@@ -169,7 +173,8 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 			break;
 		}
 	}
-		// unset inUse flags
+
+	// unset inUse flags
 	for (size_t i = 0; i < inUse.size(); i++) {
 		reader.unsetInUseFlag(inUse[i]);
 	}
@@ -179,11 +184,15 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 	}
 
 	if (resultNumber < 2) {
+		ipMin = 0;
+		inpenaltyAvailable = true;
 		return -2;
 	}
 
 	double ip = (double) 1.0 / (resultNumber - 1);
 	if (ip > ipMin){
+		ipMin = ip;
+		inpenaltyAvailable = true;
 		return -2;
 	}
 	ipMin = ip;
@@ -192,11 +201,11 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 }
 
 void Initial::extendTrails(vector<int>& searchTrailPositions,
-		vector<vector<int>*>& searchTrailTargets, Item& item, int propertyId) {
+		vector<StatementGroup*>& searchTrailTargets, Item& item, int propertyId) {
 	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
 	for (size_t i = 0; i < stmtGrs.size(); i++) {
 		if (stmtGrs[i].getPropertyId() == -propertyId) {
-			searchTrailTargets.push_back(&stmtGrs[i].getTargets()); // evt. & weglassen
+			searchTrailTargets.push_back(&stmtGrs[i]); // evt. & weglassen
 		}
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element

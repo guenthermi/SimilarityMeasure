@@ -25,7 +25,7 @@ void testIndexReader(){
 	}
 	cout << item->getDegree() << endl;
 	cout << item->getId() << " -- "
-			<< item->getStatementGroups()[0].getTargets().size() << " -- "
+			<< item->getStatementGroups()[0].size() << " -- "
 			<< item->getStatementGroups()[0].getPropertyId() << " -- "
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
@@ -43,7 +43,8 @@ void testAStarSearch() {
 		567, 		// Angela Merkel
 		183, 		// Germany
 		8337, 		// Harry Potter (novel series)
-		111 		// Mars
+		111, 		// Mars
+		39275
 	};
 
 	cout << "Start Testing - AStarSearch" << endl;
@@ -52,7 +53,7 @@ void testAStarSearch() {
 
 	TopKSearch tks(reader, 3);
 
-	tks.search(testItems[1]);
+	tks.search(testItems[7]);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }

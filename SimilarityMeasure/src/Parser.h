@@ -63,10 +63,11 @@ Item Parser::parseItem(string& line) {
 	for (size_t i = 1; i < splits.size(); i++) {
 		vector<int> stmtgr;
 		splitInts(splits[i], ',', stmtgr);
-		StatementGroup statementGroup(stmtgr[0]);
+		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
+		int* targets = statementGroup.getTargets();
 		size_t j;
 		for (j = 1; j < stmtgr.size(); j++) {
-			statementGroup.pushTarget(stmtgr[j]);
+			targets[j-1] = stmtgr[j];
 		}
 		item.pushStmtGr(statementGroup);
 	}
@@ -81,10 +82,11 @@ Item Parser::parsePureItem(int id, string& line){
 	for (size_t i = 0; i < splits.size(); i++){
 		vector<int> stmtgr;
 		splitInts(splits[i], ',', stmtgr);
-		StatementGroup statementGroup(stmtgr[0]);
+		StatementGroup statementGroup(stmtgr[0], stmtgr.size()-1);
+		int* targets = statementGroup.getTargets();
 		size_t j;
 		for (j=1; j<stmtgr.size(); j++){
-			statementGroup.pushTarget(stmtgr[j]);
+			targets[j-1] = stmtgr[j];
 		}
 		item.pushStmtGr(statementGroup);
 	}
@@ -99,13 +101,14 @@ Item Parser::parseBinaryItem(int id, ifstream& file){
 	for (int i=0; i<stmtGrsCount; i++){
 		int pId;
 		file.read((char*) &pId, sizeof(pId));
-		StatementGroup stmtGr(pId);
 		int size;
 		file.read((char*) &size, sizeof(size));
+		StatementGroup stmtGr(pId, size);
+		int* targets = stmtGr.getTargets();
 		for (int j=0; j< size; j++){
 			int target;
 			file.read((char*) &target, sizeof(target));
-			stmtGr.pushTarget(target, false);
+			targets[j] = target;
 		}
 		item.pushStmtGr(stmtGr);
 	}
@@ -118,9 +121,10 @@ Item Parser::parseInMemoryItem(int id, int pos, int* data){
 	for (int i=0; i < stmtGrSize; i++){
 		int pId = data[pos++];
 		int size = data[pos++];
-		StatementGroup stmtGr(pId);
+		StatementGroup stmtGr(pId, size);
+		int* targets = stmtGr.getTargets();
 		for (int j=0; j < size; j++){
-			stmtGr.pushTarget(data[pos++], false);
+			targets[j] = data[pos++];
 		}
 		result.pushStmtGr(stmtGr);
 	}

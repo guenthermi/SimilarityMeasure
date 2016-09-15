@@ -71,7 +71,7 @@ void TopK::updateTopK(map<int, double>* candidates, double gReduction,
 					for (unordered_set<int>::iterator it = topElements.begin();
 							it != topElements.end(); it++) {
 						double secondWeight = contents[*it].weight;
-						if (toRemoveValue < secondWeight) {
+						if (toRemoveValue > secondWeight) {
 							toRemoveValue = secondWeight;
 							toRemove = *it;
 						}

@@ -142,8 +142,8 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& re
 	cout << "start creating initials" << endl;
 	for (int i=0; i<stmtGrs.size(); i++){
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
-		vector<int>& targets = stmtGrs[i].getTargets();
-		for (int j=0; j<targets.size(); j++){
+		int* targets = stmtGrs[i].getTargets();
+		for (int j=0; j<stmtGrs[i].size(); j++){
 			bool valid = true;
 			for (int k=0; k < origins.size();k++){
 				if (origins[k] == targets[j]){
@@ -153,7 +153,7 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& re
 			count++;
 			if (valid){
 				itemTrail.push_back(targets[j]);
-				double ip = (initial->getItemTrail().size() == 1) ? 1.0 : (1.0 / ((1.0 / initial->getInpenalty()) +1));
+				double ip = (initial->getInpenalty() == 0) ? 1.0 : (1.0 / ((1.0 / initial->getInpenalty()) +1));
 				Initial* newInitial = new Initial(reader, targets[j], bl, newOp, ip, itemTrail, propertyTrail);
 				destination->insert(newInitial);
 				itemTrail.pop_back();

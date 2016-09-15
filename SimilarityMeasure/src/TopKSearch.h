@@ -43,7 +43,7 @@ protected:
 			vector<int>& itemTrail, double weight, Blacklist* blacklist,
 			int& inpenalty);
 	void extendTrails(vector<int>& searchTrailPositions,
-			vector<vector<int>*>& searchTrailTargets, Item& item,
+			vector<StatementGroup*>& searchTrailTargets, Item& item,
 			int propertyId);
 
 	// debug
@@ -78,7 +78,7 @@ void TopKSearch::search(int itemId) {
 
 	cout << "#Initials= " << state.getInitials().size() << endl;
 
-	int maxIteration = 8;
+	int maxIteration = 200;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
@@ -148,7 +148,7 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 
 	int itemId = itemTrail.back();
 
-	vector<vector<int>*> searchTrailTargets;
+	vector<StatementGroup*> searchTrailTargets;
 	vector<int> searchTrailPositions;
 
 	Item& origin = reader.getItemById(itemId); // the item where the two paths end
@@ -178,7 +178,7 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 			// -> there are still elements on this layer
 
 			// read next item
-			int id = (*searchTrailTargets.back())[searchTrailPositions.back()];
+			int id = (*searchTrailTargets.back()).getTargets()[searchTrailPositions.back()];
 
 			// set position in search trail to next element
 			searchTrailPositions.back()++;
@@ -249,11 +249,11 @@ void TopKSearch::addItemToResult(map<int, double>* result, int itemId,
 }
 
 void TopKSearch::extendTrails(vector<int>& searchTrailPositions,
-		vector<vector<int>*>& searchTrailTargets, Item& item, int propertyId) {
+		vector<StatementGroup*>& searchTrailTargets, Item& item, int propertyId) {
 	vector<StatementGroup>& stmtGrs = item.getStatementGroups();
 	for (size_t i = 0; i < stmtGrs.size(); i++) {
 		if (stmtGrs[i].getPropertyId() == -propertyId) {
-			searchTrailTargets.push_back(&stmtGrs[i].getTargets()); // evt. & weglassen
+			searchTrailTargets.push_back(&stmtGrs[i]); // evt. & weglassen
 		}
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element

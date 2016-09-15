@@ -15,43 +15,32 @@ using namespace std;
 
 class StatementGroup {
 public:
-	StatementGroup(int pId, vector<int>& targets);
-	StatementGroup(int pId);
+	StatementGroup(int pId, int size);
 	int getPropertyId();
-	vector<int>& getTargets();
-	void pushTarget(int target, bool safemode = false);
+	int* getTargets();
+	int size();
 protected:
 	int pId;
-	vector<int> targets;
+	int sz;
+	int* targets;
 };
 
-StatementGroup::StatementGroup(int pId, vector<int>& targets) {
+StatementGroup::StatementGroup(int pId, int size) {
 	this->pId = pId;
-	this->targets = targets;
-}
-
-StatementGroup::StatementGroup(int pId) {
-	this->pId = pId;
-	this->targets = vector<int>();
+	targets = new int[size];
+	sz = size;
 }
 
 int StatementGroup::getPropertyId() {
 	return pId;
 }
 
-vector<int>& StatementGroup::getTargets() {
+int* StatementGroup::getTargets() {
 	return targets;
 }
 
-void StatementGroup::pushTarget(int target, bool safemode) {
-	if (safemode) {
-		for (size_t i = 0; i < targets.size(); i++) {
-			if (targets[i] == target) {
-				return;
-			}
-		}
-	}
-	targets.push_back(target);
+int StatementGroup::size(){
+	return sz;
 }
 
 #endif /* STATEMENTGROUP_H_ */

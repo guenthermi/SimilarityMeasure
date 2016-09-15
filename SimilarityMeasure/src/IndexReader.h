@@ -25,8 +25,8 @@ using namespace std;
 class IndexReader{
 public:
 
-	int cacheSize = 1000000;
-	static const int cacheFreeRate = 100000;
+	int cacheSize = 4000000;
+	static const int cacheFreeRate = 1000000;
 
 	IndexReader(string path);
 	~IndexReader();
@@ -67,6 +67,7 @@ protected:
 	int pos;
 	bool readIt;
 	Item current;
+	int inUse = 0;
 };
 
 IndexReader::IndexReader(string path){
@@ -135,10 +136,12 @@ void IndexReader::jumpToBegin(){
 void IndexReader::setInUseFlag(int id){
 //	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
 	cache[id]->inUse = true;
+	inUse++;
 }
 
 void IndexReader::unsetInUseFlag(int id){
 	cache[id]->inUse = false;
+	inUse--;
 }
 
 void IndexReader::pushToCache(Item item) {
@@ -186,7 +189,7 @@ void IndexReader::freeCache(int amount) {
 		for (int i = 0; i < j; i++) {
 			cache.erase(idArray[i]);
 		}
-		cout << "cache used: " << cacheUsed << "file used: " << fileUsed
+		cout << "cache used: " << cacheUsed << "file used: " << fileUsed << " In Use: " << inUse
 				<< endl;
 		cacheUsed = 0;
 		fileUsed = 0;
