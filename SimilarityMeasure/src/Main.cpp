@@ -72,7 +72,7 @@ void testAStarSearch() {
 
 	WebApi api;
 
-	unordered_map<int, TopKEntry> top = tks.search(testItems[5]);
+	unordered_map<int, TopKEntry> top = tks.search(testItems[1]);
 	printTopK(top, &api);
 
 	cout << "Complete AStarSearch Test" << endl << endl;

@@ -22,23 +22,19 @@
 
 using namespace std;
 
-class IndexReader{
+class IndexReader {
 public:
 
-	int cacheSize = 4000000;
-	static const int cacheFreeRate = 1000000;
+	int cacheSize = 2000000;
+	static const int cacheFreeRate = 500000;
 
 	IndexReader(string path);
 	~IndexReader();
 
-	void jumpToBegin();
-	bool hasNextItem();
-	bool getNextItem(Item& item, bool caching);
 	Item& getItemById(int id);
 	Item& getItemById(int id, bool*& inUse);
 	void setInUseFlag(int id);
 	void unsetInUseFlag(int id);
-
 
 protected:
 
@@ -49,7 +45,7 @@ protected:
 			usage = 0;
 			inUse = false;
 		}
-		~CacheLine(){
+		~CacheLine() {
 			entry.clear();
 		}
 		unsigned char usage;
@@ -59,17 +55,20 @@ protected:
 
 	void freeCache(int amount);
 
-	CacheLine* pushToCache(Item item){
-		if (cache.size() >= cacheSize) {
+	CacheLine* pushToCache(Item item) {
+		if (cacheUsage >= cacheSize) {
 			freeCache(cacheFreeRate);
 		}
 		CacheLine* line = new CacheLine(item);
 		cache[item.getId()] = line;
+		cacheUsage++;
 		return line;
-	};
+	}
+	;
 
-
-	unordered_map<int, CacheLine*> cache;
+//	unordered_map<int, CacheLine*> cache;
+	CacheLine** cache;
+	int cacheUsage;
 
 	int minCacheUsage;
 	Item nullItem;
@@ -78,62 +77,42 @@ protected:
 	int fileUsed;
 
 	BinaryIndex index;
-	int pos;
-	bool readIt;
-	Item current;
-	int inUse = 0;
+	int inUseCount = 0;
 };
 
-IndexReader::IndexReader(string path){
+IndexReader::IndexReader(string path) {
 
-	cache = unordered_map<int, CacheLine*>();
+//	cache = unordered_map<int, CacheLine*>();
+	cache = new CacheLine*[25000000];
+	for (int i = 0; i < 25000000; i++) {
+		cache[i] = NULL;
+	}
+	cacheUsage = 0;
 	minCacheUsage = 0;
 	cacheUsed = 0;
 	fileUsed = 0;
 	nullItem = Item();
 
-	pos = 0;
-	readIt = true;
-	current = Item();
 	index.init(path + ".map", path + ".data");
 	cout << "Index is loaded" << endl;
 }
 
-IndexReader::~IndexReader(){
+IndexReader::~IndexReader() {
 
 }
 
-bool IndexReader::hasNextItem(){
-	if (!readIt){
-		return true;
-	}
-	while(pos < BinaryIndex::kItemSize){
-		current = index.getItem(++pos);
-		if (current.getId() != 0){
-			readIt = false;
-			return true;
-		}
-	}
-}
-
-bool IndexReader::getNextItem(Item& item, bool caching){
-	readIt = true;
-	if (caching){
-		pushToCache(current);
-	}
-	item = current;
-	return true;
-}
-
-Item& IndexReader::getItemById(int id){
-	unordered_map<int, CacheLine*>::iterator ii = cache.find(id);
-	if (ii != cache.end()){
+Item& IndexReader::getItemById(int id) {
+	CacheLine* ii = cache[id];
+	if (ii != NULL) {
 		cacheUsed++;
-		return ii->second->entry;
+		if (ii->usage < 255) {
+			ii->usage++;
+		}
+		return ii->entry;
 	}
 	fileUsed++;
 	Item item = index.getItem(id);
-	if (item.getId() != 0){
+	if (item.getId() != 0) {
 		pushToCache(item);
 		return cache[id]->entry;
 	}
@@ -141,85 +120,80 @@ Item& IndexReader::getItemById(int id){
 
 }
 
-Item& IndexReader::getItemById(int id, bool*& inUse){
-	unordered_map<int, CacheLine*>::iterator ii = cache.find(id);
-	if (ii != cache.end()){
+Item& IndexReader::getItemById(int id, bool*& inUse) {
+	CacheLine* ii = cache[id];
+	if (ii != NULL) {
 		cacheUsed++;
-		inUse = &ii->second->inUse;
-		return ii->second->entry;
+		if (ii->usage < 255) {
+			ii->usage++;
+		}
+		inUse = &ii->inUse;
+		return ii->entry;
 	}
 	fileUsed++;
 	Item item = index.getItem(id);
-	if (item.getId() != 0){
+	if (item.getId() != 0) {
 		CacheLine* line = pushToCache(item);
 		inUse = &line->inUse;
 		return line->entry;
 	}
 	return nullItem;
-
 }
 
-void IndexReader::jumpToBegin(){
-	pos = 0;
-	readIt = true;
-	current = Item();
-}
-
-void IndexReader::setInUseFlag(int id){
+void IndexReader::setInUseFlag(int id) {
 //	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
 	cache[id]->inUse = true;
-	inUse++;
+	inUseCount++;
 }
 
-void IndexReader::unsetInUseFlag(int id){
+void IndexReader::unsetInUseFlag(int id) {
 	cache[id]->inUse = false;
-	inUse--;
+	inUseCount--;
 }
 
 void IndexReader::freeCache(int amount) {
+	cout << "Call free cache (" << amount << ")" << endl;
 	if (amount < 0) {
-		cache.clear();
+		for (int i=0; i<25000000; i++){
+			cache[i] = NULL;
+		}
 	} else {
 		int todo = amount;
-		int* idArray = new int[amount];
-		for (int i = 0; i < amount; i++) {
-			idArray[i] = NULL;
-		}
 		int j = 0;
 		int inUseRate = 0;
 		while ((todo > 0) && (inUseRate < cacheFreeRate)) {
-			unordered_map<int, CacheLine*>::iterator ii;
-			for (ii = cache.begin(); (ii != cache.end()) && (todo > 0); ++ii) {
-				if (ii->second->inUse){
-					inUseRate++;
-					continue;
-				}
-				if (ii->second->usage <= minCacheUsage) {
-					idArray[j] = ii->first;
-					delete ii->second;
-					todo--;
-					j++;
+			int ii = 0;
+			for (ii = 0; (ii < 25000000) && (todo > 0); ++ii) {
+				if (cache[ii] !=NULL){
+					if (cache[ii]->inUse) {
+						inUseRate++;
+						continue;
+					}
+					if (cache[ii]->usage <= minCacheUsage) {
+						delete cache[ii];
+						cache[ii] = NULL;
+						todo--;
+						j++;
+						cacheUsage--;
+					}
 				}
 			}
-			if (ii == cache.end()) {
-				if (minCacheUsage == 255){
+			if (ii == 25000000) {
+				if (minCacheUsage == 255) {
 					return;
 				}
 				minCacheUsage++;
 			}
-			if (inUseRate >= (cacheFreeRate / 2)){
+			if (inUseRate >= (cacheSize / 2)) {
 				cacheSize += cacheFreeRate;
+				break;
 			}
 		}
-		for (int i = 0; i < j; i++) {
-			cache.erase(idArray[i]);
-		}
-		cout << "cache used: " << cacheUsed << "file used: " << fileUsed << " In Use: " << inUse
-				<< endl;
+		cout << "cache used: " << cacheUsed << "file used: " << fileUsed
+				<< " In Use: " << inUseRate << endl;
 		cacheUsed = 0;
 		fileUsed = 0;
 	}
 }
-
 
 #endif /* INDEXREADER_H_ */

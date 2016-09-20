@@ -67,6 +67,7 @@ TopKSearch::~TopKSearch() {
 unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 
 	State state(&topK);
+	int debug = 0;
 
 	vector<int> itemTrail;
 	itemTrail.push_back(itemId);
@@ -78,11 +79,11 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 
 	cout << "#Initials= " << state.getInitials().size() << endl;
 
-	int maxIteration = 250000;
+	int maxIteration = 5000;
 	int iteration = 0;
 	bool terminate = false;
 	while ((iteration < maxIteration) && (!terminate)) {
-		Initial* init = state.getBestChoice(reader, iteration, maxIteration);
+		Initial* init = state.getBestChoice(debug, reader, iteration, maxIteration);
 		if (init == NULL){
 			break;
 		}
@@ -93,6 +94,7 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 		terminate = topK.hasConverged();
 	}
 
+	cout << "Debug:" << debug << endl;
 	cout << "initial size: " << state.getInitials().size() << endl;
 	cout << "score table size: " << topK.getContentsSize() << " terminate:  " << terminate
 			<< " Global Delta: " << topK.getGlobalDelta() << endl;
@@ -104,7 +106,6 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
 	bl->setNext(initial->getBlacklist());
 	// create new initials
 	double newOp = state.createNewInitials(initial, bl, reader);
-
 	// compute similarities
 	int ip = 0;
 	map<int, double>* candidates = hasSimilarity(initial->getPropertyTrail(), initial->getItemTrail(), initial->getOP(), *bl, ip);

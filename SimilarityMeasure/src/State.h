@@ -15,13 +15,14 @@
 #include "datamodel/TopKEntry.h"
 #include "TopK.h"
 
-#include<set>
-#include<iostream>
-#include<unordered_map>
+#include <math.h>
+#include <set>
+#include <iostream>
+#include <unordered_map>
 
 using namespace std;
 
-class State{
+class State {
 public:
 
 	const double kLevelFactor = 0.1;
@@ -30,9 +31,11 @@ public:
 	State(TopK* topK);
 	~State();
 	void deleteInitial(Initial* initial);
-	Initial* getBestChoice(IndexReader& reader, int& iterationCount, int& maxIteration);
+	Initial* getBestChoice(int& debug, IndexReader& reader, int& iterationCount,
+			int& maxIteration);
 	set<Initial*>& getInitials();
-	double createNewInitials(Initial* initial, Blacklist* bl, IndexReader& reader, set<Initial*>* destination=NULL);
+	double createNewInitials(Initial* initial, Blacklist* bl,
+			IndexReader& reader, set<Initial*>* destination = NULL);
 
 protected:
 	set<Initial*> initials;
@@ -42,85 +45,104 @@ protected:
 	TopK* topK;
 };
 
-State::State(TopK* topK){
+State::State(TopK* topK) {
 	level = 0.1;
 	this->topK = topK;
 }
 
-State::~State(){
+State::~State() {
 	freeInitials();
 }
 
-void State::deleteInitial(Initial* initial){
+void State::deleteInitial(Initial* initial) {
+	if (buffer.find(initial) != buffer.end()){
+		cout << "error" << endl;
+		while(1);
+	}
 	delete initial;
 	initials.erase(initial);
 }
 
-Initial* State::getBestChoice(IndexReader& reader, int& iterationCount, int& maxIteration){
+Initial* State::getBestChoice(int& debug, IndexReader& reader,
+		int& iterationCount, int& maxIteration) {
+	cout << "CALL" << endl;
 	Initial* result = NULL;
 	set<Initial*> toRemove;
 	set<Initial*> toAdd;
-	if (initials.size() == 0){
+	if (initials.size() == 0) {
 		return NULL;
 	}
 
-	if (!buffer.empty()){
+	if (!buffer.empty()) {
 		result = *buffer.begin();
 		buffer.erase(buffer.begin());
 		return result;
 	}
-
-	while (result == NULL){
-		for (set<Initial*>::iterator it = initials.begin(); it != initials.end(); it++){
+	int startIteration = iterationCount;
+	int initialSize = initials.size();
+	while (result == NULL) {
+		for (set<Initial*>::iterator it = initials.begin();
+				it != initials.end(); it++) {
 			double deltaReduce = 0;
-			double value = (*it)->getPenalty(&deltaReduce, level);
-			if (value == -1){
-				if (deltaReduce != 0){
+			double value = (*it)->getPenalty(debug, &deltaReduce, level,
+					sqrt(1.0 / level) /*/ (kLevelFactor*kLevelFactor)*/);
+			if (value == -1) {
+				if (deltaReduce != 0) {
 					topK->reduceDeltas(deltaReduce, (*it)->getBlacklist());
 					iterationCount++;
 					cout << "IterationD: " << iterationCount << endl;
 				}
 
-				if (iterationCount > maxIteration){
+				if (iterationCount > maxIteration) {
 					return NULL;
 				}
 				continue;
 			}
-			if (value == -2){
+			if (value == -2) {
 				Blacklist* bl = new Blacklist();
 				bl->setNext((*it)->getBlacklist());
 				createNewInitials((*it), bl, reader, &toAdd);
 				toRemove.insert((*it));
 				iterationCount++;
 				cout << "Iteration0: " << iterationCount << endl;
-				if (iterationCount > maxIteration){
-					cout << "get there" << endl;
+				if (iterationCount > maxIteration) {
 					return NULL;
-				}
+				};
 				continue;
 			}
-			if (value != -1){
-//				cout << "found candidate" << endl;
-				if (result == NULL){
+			if (value != -1) {
+				if (result == NULL) {
 					result = *it;
-				}else{
+				} else {
 					buffer.insert(*it);
 				}
 			}
-			if (buffer.size() > kBufferVolume){
+			if (buffer.size() > kBufferVolume) {
 				break;
 			}
 		}
-		if (result == NULL){
-			level *= kLevelFactor;
-			cout << "buffer size: " << buffer.size() << endl;
-			cout << "get on the next level: " << level << " Initial size: " << initials.size() << endl;
-		}else{
-			for (set<Initial*>::iterator it = toRemove.begin(); it != toRemove.end(); it++){
-				delete *it;
-				initials.erase(*it);
+		for (set<Initial*>::iterator it = toRemove.begin();
+				it != toRemove.end(); it++) {
+			if (buffer.find(*it) != buffer.end()){
+				cout << "error a " << (*it)->getItemId() << endl;
+				while(1);
 			}
-			for (set<Initial*>::iterator it = toAdd.begin(); it != toAdd.end(); it++){
+			delete *it;
+			initials.erase(*it);
+		}
+		toRemove.clear();
+		double factor = ((double) (iterationCount - startIteration)) / initialSize;
+		if ((factor < 0.1) || (buffer.size() < 1)) {
+			level *= kLevelFactor;
+			cout << "get on the next level: " << level << " Initial size: "
+					<< initials.size() << endl;
+			if (result != NULL){
+				return result;
+			}
+		} else {
+			cout << "buffer size: " << buffer.size() << endl;
+			for (set<Initial*>::iterator it = toAdd.begin(); it != toAdd.end();
+					it++) {
 				initials.insert(*it);
 			}
 			cout << "initial size: " << initials.size() << endl;
@@ -129,45 +151,52 @@ Initial* State::getBestChoice(IndexReader& reader, int& iterationCount, int& max
 	}
 }
 
-set<Initial*>& State::getInitials(){
+set<Initial*>& State::getInitials() {
 	return initials;
 }
 
 /**
  * Returns the new op value of the initials which have been created.
  */
-double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& reader, set<Initial*>* destination){
-	if (destination == NULL){
+double State::createNewInitials(Initial* initial, Blacklist* bl,
+		IndexReader& reader, set<Initial*>* destination) {
+	if (destination == NULL) {
 		destination = &initials;
 	}
-
+	cout << "initial id: " << initial->getItemId() << "bla" << (long) initial << endl;
 	Item& item = reader.getItemById(initial->getItemId());
-	int count=0;
+	cout << "item id:" << item.getId() << endl;
+	int count = 0;
 	int degree = item.getDegree();
-	if (initial->getItemTrail().size() == 1){
+	if (initial->getItemTrail().size() == 1) {
 		degree++;
 	}
-	double newOp = ((double) (1.0 / (degree -1))) * initial->getOP(); // degree reduced by origin
+	double newOp = ((double) (1.0 / (degree - 1))) * initial->getOP(); // degree reduced by origin
 	vector<int>& origins = initial->getItemTrail();
 	StatementGroup* stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
+	cout << stmtGrs[0].getPropertyId() << endl;
 	vector<int> propertyTrail = initial->getPropertyTrail();
 	cout << "start creating initials" << endl;
-	for (int i=0; i<item.size(); i++){
+	for (int i = 0; i < item.size(); i++) {
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		int* targets = stmtGrs[i].getTargets();
-		for (int j=0; j<stmtGrs[i].size(); j++){
+		for (int j = 0; j < stmtGrs[i].size(); j++) {
 			bool valid = true;
-			for (int k=0; k < origins.size();k++){
-				if (origins[k] == targets[j]){
+			for (int k = 0; k < origins.size(); k++) {
+				if (origins[k] == targets[j]) {
 					valid = false;
 				}
 			}
 			count++;
-			if (valid){
+			if (valid) {
 				itemTrail.push_back(targets[j]);
-				double ip = (initial->getInpenalty() == 0) ? 1.0 : (1.0 / ((1.0 / initial->getInpenalty()) +1));
-				Initial* newInitial = new Initial(reader, targets[j], bl, newOp, ip, itemTrail, propertyTrail);
+				double ip =
+						(initial->getInpenalty() == 0) ?
+								1.0 :
+								(1.0 / ((1.0 / initial->getInpenalty()) + 1));
+				Initial* newInitial = new Initial(reader, targets[j], bl, newOp,
+						ip, itemTrail, propertyTrail);
 				destination->insert(newInitial);
 				itemTrail.pop_back();
 			}
@@ -178,8 +207,9 @@ double State::createNewInitials(Initial* initial, Blacklist* bl, IndexReader& re
 	return newOp;
 }
 
-void State::freeInitials(){
-	for (set<Initial*>::iterator it = initials.begin(); it != initials.end(); it++){
+void State::freeInitials() {
+	for (set<Initial*>::iterator it = initials.begin(); it != initials.end();
+			it++) {
 		delete *it;
 	}
 }

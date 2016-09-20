@@ -53,12 +53,17 @@ int StatementGroup::size(){
 }
 
 void StatementGroup::clear(){
-	delete[] targets;
+	if (targets != NULL){
+		delete[] targets;
+	}
 }
 
 void StatementGroup::reallocate(int pId, int size, int* targets){
 	this->pId = pId;
 	this->sz = size;
+	if (this->targets != NULL){
+		delete[] this->targets;
+	}
 	this->targets = targets;
 }
 

@@ -20,13 +20,14 @@ public:
 	Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 			double baseIp, vector<int> itemTrail, vector<int> propertyTrail);
 	~Initial();
-	double computePenalty(double* deltaReduce, Item* item = NULL, double minIp = 0);
-	double getPenalty(double* deltaReduce, double min);
+	double computePenalty(int& debug, double* deltaReduce, Item* item = NULL, double minIp = 0, int maxEffort = 0x7FFFFFFF);
+	double getPenalty(int& debug, double* deltaReduce, double min, int maxEffort);
 	double getInpenalty();
 
 	Blacklist* getBlacklist();
 	int getItemId();
 	double getOP();
+	int getEffort();
 	vector<int>& getItemTrail();
 	vector<int>& getPropertyTrail();
 
@@ -45,6 +46,7 @@ protected:
 
 	// computed values
 	double ipMin;
+	int effort;
 	bool inpenaltyAvailable;
 	vector<int> propertyTrail;
 	vector<int> itemTrail;
@@ -54,6 +56,10 @@ protected:
 Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 		double baseIp, vector<int> itemTrail, vector<int> propertyTrail) :
 		reader(reader) {
+	if (itemId == 0){
+		cout << "error item id == 0" << endl;
+		while(1);
+	}
 	this->op = op;
 	this->blacklist = bl;
 	this->itemId = itemId;
@@ -61,6 +67,7 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 	this->propertyTrail = propertyTrail;
 	this->inpenaltyAvailable = false;
 	this->ipMin = baseIp;
+	this->effort = 0;
 	itemTrail.push_back(itemId);
 }
 
@@ -76,7 +83,8 @@ double Initial::getInpenalty() {
 			inpenaltyAvailable = true;
 			return ipMin;
 		}
-		computePenalty(NULL, NULL, 0);
+		int tmp =0;
+		computePenalty(tmp, NULL, NULL, 0, 0x7FFFFFFF);
 		return ipMin;
 	}
 }
@@ -88,12 +96,15 @@ double Initial::getInpenalty() {
  * 	item	pointer to the target item
  * 	minIp	minimal inpenalty value
  */
-double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
-	int counter = 0; // debug
+double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, double minIp, int maxEffort) {
 	if (inpenaltyAvailable) {
 		return ipMin * op;
 	}
 	if (minIp > ipMin) {
+		*deltaReduce = 0;
+		return -1;
+	}
+	if (effort >  maxEffort){
 		*deltaReduce = 0;
 		return -1;
 	}
@@ -111,6 +122,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		*flag = true;
 		inUse.push_back(flag);
 	}
+	effort = 0;
 	int resultNumber = 0;
 	vector<StatementGroup*> searchTrailTargets;
 	vector<int> searchTrailPositions;
@@ -141,6 +153,7 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 				Item& nextItem = reader.getItemById(id, flag);
 				*flag = true;
 				inUse.push_back(flag);
+				effort++;
 
 				searchTrailPositions.back()++;int
 				propertyTrailPosition = propertyTrail.size()
@@ -154,11 +167,18 @@ double Initial::computePenalty(double* deltaReduce, Item* item, double minIp) {
 		if (searchTrailTargets.size() == propertyTrail.size()) {
 			resultNumber += searchTrailTargets.back()->size();
 			if (resultNumber > 1){
-				if (((double) 1.0 / (resultNumber-1)) < minIp) {
-					double oldIpMin = ipMin;
-					ipMin = (double) 1.0 / (resultNumber-1);
-					if (deltaReduce){
-						(*deltaReduce) = (oldIpMin - ipMin)*op;
+				if ( (((double) 1.0 / (resultNumber-1)) < minIp) || (effort > maxEffort) ) {
+					if (effort > maxEffort){
+						debug++;
+					}else{
+						debug--;
+					}
+					if (resultNumber > 1){
+						double oldIpMin = ipMin;
+						ipMin = (double) 1.0 / (resultNumber-1);
+						if (deltaReduce){
+							(*deltaReduce) = (oldIpMin - ipMin)*op;
+						}
 					}
 					// unset inUse flags
 					for (size_t i = 0; i < inUse.size(); i++) {
@@ -215,9 +235,9 @@ void Initial::extendTrails(vector<int>& searchTrailPositions,
 	}
 }
 
-double Initial::getPenalty(double* deltaReduce, double min) {
+double Initial::getPenalty(int& debug, double* deltaReduce, double min, int maxEffort) {
 	double minIp = min / op;
-	return computePenalty(deltaReduce, NULL, minIp);
+	return computePenalty(debug, deltaReduce, NULL, minIp, maxEffort);
 }
 
 Blacklist* Initial::getBlacklist() {
@@ -228,6 +248,10 @@ int Initial::getItemId() {
 }
 double Initial::getOP() {
 	return op;
+}
+
+int Initial::getEffort(){
+	return effort;
 }
 
 vector<int>& Initial::getItemTrail() {
