@@ -61,14 +61,14 @@ void testAStarSearch() {
 		183, 		// Germany
 		8337, 		// Harry Potter (novel series)
 		111, 		// Mars
-		39275
+		39275		// Mouse
 	};
 
 	cout << "Start Testing - AStarSearch" << endl;
 	IndexReader reader(
 				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
-	TopKSearch tks(reader, 3);
+	TopKSearch tks(reader, 3, 7);
 
 	WebApi api;
 
@@ -79,9 +79,24 @@ void testAStarSearch() {
 }
 
 int main() {
-	cout << "Start Testing" << endl << endl;
-	testAStarSearch();
-	cout << "End" << endl;
+	cout << "Similarity Measure" << endl;
+
+	int k;
+	int maxIteration;
+	int itemId;
+
+	cout << "Number of results (k): ";
+	cin >> k;
+	cout << "ItemID: Q";
+	cin >> itemId;
+
+	IndexReader reader("indexFiles/combinedIndexBin");
+	TopKSearch tks(reader, k, 2);
+	WebApi api;
+
+	unordered_map<int, TopKEntry> top = tks.search(itemId);
+	printTopK(top, &api);
+
 	return 0;
 }
 

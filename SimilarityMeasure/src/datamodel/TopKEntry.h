@@ -10,8 +10,14 @@
 
 class TopKEntry{
 public:
+	TopKEntry();
 	double weight;
 	double delta;
 };
+
+TopKEntry::TopKEntry(){
+	weight = 0;
+	delta = 0;
+}
 
 #endif /* TOPKENTRY_H_ */

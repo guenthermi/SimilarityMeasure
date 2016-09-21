@@ -25,16 +25,17 @@ using namespace std;
 class IndexReader {
 public:
 
-	int cacheSize = 2000000;
-	static const int cacheFreeRate = 500000;
+	static const int startCacheSize = 4000000;
+	static const int cacheFreeRate = 1000000;
+	int cacheSize = startCacheSize;
 
 	IndexReader(string path);
 	~IndexReader();
 
 	Item& getItemById(int id);
-	Item& getItemById(int id, bool*& inUse);
 	void setInUseFlag(int id);
 	void unsetInUseFlag(int id);
+	int getInUseCount();
 
 protected:
 
@@ -78,6 +79,7 @@ protected:
 
 	BinaryIndex index;
 	int inUseCount = 0;
+	bool superSize = false;
 };
 
 IndexReader::IndexReader(string path) {
@@ -120,35 +122,30 @@ Item& IndexReader::getItemById(int id) {
 
 }
 
-Item& IndexReader::getItemById(int id, bool*& inUse) {
-	CacheLine* ii = cache[id];
-	if (ii != NULL) {
-		cacheUsed++;
-		if (ii->usage < 255) {
-			ii->usage++;
-		}
-		inUse = &ii->inUse;
-		return ii->entry;
-	}
-	fileUsed++;
-	Item item = index.getItem(id);
-	if (item.getId() != 0) {
-		CacheLine* line = pushToCache(item);
-		inUse = &line->inUse;
-		return line->entry;
-	}
-	return nullItem;
-}
-
 void IndexReader::setInUseFlag(int id) {
 //	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
-	cache[id]->inUse = true;
+	bool& inUse = cache[id]->inUse;
+	inUseCount -= inUse;
+	inUse = true;
 	inUseCount++;
+
 }
 
 void IndexReader::unsetInUseFlag(int id) {
+	inUseCount-= cache[id]->inUse;
 	cache[id]->inUse = false;
-	inUseCount--;
+	if (superSize){
+		if (inUseCount == 0){
+			int amount = cacheSize - startCacheSize;
+			freeCache(amount+ cacheFreeRate);
+			cacheSize = startCacheSize;
+			superSize = false;
+		}
+	}
+}
+
+int IndexReader::getInUseCount(){
+	return inUseCount;
 }
 
 void IndexReader::freeCache(int amount) {
@@ -186,6 +183,7 @@ void IndexReader::freeCache(int amount) {
 			}
 			if (inUseRate >= (cacheSize / 2)) {
 				cacheSize += cacheFreeRate;
+				superSize = true;
 				break;
 			}
 		}

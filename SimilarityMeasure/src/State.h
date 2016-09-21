@@ -11,7 +11,7 @@
 #include "Initial.h"
 #include "Blacklist.h"
 #include "IndexReader.h"
-#include "TopKSearch.h"
+#include "DebugHelpers.h"
 #include "datamodel/TopKEntry.h"
 #include "TopK.h"
 
@@ -19,6 +19,7 @@
 #include <set>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 
 using namespace std;
 
@@ -28,25 +29,23 @@ public:
 	const double kLevelFactor = 0.1;
 	const double kBufferVolume = 1000;
 
-	State(TopK* topK);
+	State(TopK* topK, int level);
 	~State();
-	void deleteInitial(Initial* initial);
-	Initial* getBestChoice(int& debug, IndexReader& reader, int& iterationCount,
-			int& maxIteration);
-	set<Initial*>& getInitials();
+	Initial* getNextInitial(int& debug, IndexReader& reader,
+			int& iterationCount, int& maxIteration);
+	vector<Initial*>& getInitials();
 	double createNewInitials(Initial* initial, Blacklist* bl,
-			IndexReader& reader, set<Initial*>* destination = NULL);
+			IndexReader& reader);
 
 protected:
-	set<Initial*> initials;
-	set<Initial*> buffer;
+	vector<Initial*> stack;
 	void freeInitials();
 	double level;
 	TopK* topK;
 };
 
-State::State(TopK* topK) {
-	level = 0.1;
+State::State(TopK* topK, int level) {
+	this->level = pow(0.1, level);
 	this->topK = topK;
 }
 
@@ -54,118 +53,52 @@ State::~State() {
 	freeInitials();
 }
 
-void State::deleteInitial(Initial* initial) {
-	if (buffer.find(initial) != buffer.end()){
-		cout << "error" << endl;
-		while(1);
-	}
-	delete initial;
-	initials.erase(initial);
-}
-
-Initial* State::getBestChoice(int& debug, IndexReader& reader,
+Initial* State::getNextInitial(int& debug, IndexReader& reader,
 		int& iterationCount, int& maxIteration) {
-	cout << "CALL" << endl;
 	Initial* result = NULL;
-	set<Initial*> toRemove;
-	set<Initial*> toAdd;
-	if (initials.size() == 0) {
-		return NULL;
-	}
-
-	if (!buffer.empty()) {
-		result = *buffer.begin();
-		buffer.erase(buffer.begin());
-		return result;
-	}
-	int startIteration = iterationCount;
-	int initialSize = initials.size();
-	while (result == NULL) {
-		for (set<Initial*>::iterator it = initials.begin();
-				it != initials.end(); it++) {
-			double deltaReduce = 0;
-			double value = (*it)->getPenalty(debug, &deltaReduce, level,
-					sqrt(1.0 / level) /*/ (kLevelFactor*kLevelFactor)*/);
-			if (value == -1) {
-				if (deltaReduce != 0) {
-					topK->reduceDeltas(deltaReduce, (*it)->getBlacklist());
-					iterationCount++;
-					cout << "IterationD: " << iterationCount << endl;
-				}
-
-				if (iterationCount > maxIteration) {
-					return NULL;
-				}
-				continue;
+	while ((result == NULL) && (stack.size() > 0)) {
+		Initial* initial = stack.back();
+		stack.pop_back();
+		double deltaReduce = 0;
+		double value = initial->getPenalty(debug, &deltaReduce, level,
+				pow((1.0 / level), 1./2.));
+		if (value == -1){
+			if (deltaReduce != 0) {
+				topK->reduceDeltas(deltaReduce, initial->getBlacklist());
+			}else{
+				iterationCount--;
 			}
-			if (value == -2) {
-				Blacklist* bl = new Blacklist();
-				bl->setNext((*it)->getBlacklist());
-				createNewInitials((*it), bl, reader, &toAdd);
-				toRemove.insert((*it));
-				iterationCount++;
-				cout << "Iteration0: " << iterationCount << endl;
-				if (iterationCount > maxIteration) {
-					return NULL;
-				};
-				continue;
-			}
-			if (value != -1) {
-				if (result == NULL) {
-					result = *it;
-				} else {
-					buffer.insert(*it);
-				}
-			}
-			if (buffer.size() > kBufferVolume) {
-				break;
-			}
+			delete initial;
 		}
-		for (set<Initial*>::iterator it = toRemove.begin();
-				it != toRemove.end(); it++) {
-			if (buffer.find(*it) != buffer.end()){
-				cout << "error a " << (*it)->getItemId() << endl;
-				while(1);
-			}
-			delete *it;
-			initials.erase(*it);
+		if (value == -2){
+			createNewInitials(initial, initial->getBlacklist(), reader);
+			delete initial;
 		}
-		toRemove.clear();
-		double factor = ((double) (iterationCount - startIteration)) / initialSize;
-		if ((factor < 0.1) || (buffer.size() < 1)) {
-			level *= kLevelFactor;
-			cout << "get on the next level: " << level << " Initial size: "
-					<< initials.size() << endl;
-			if (result != NULL){
-				return result;
-			}
-		} else {
-			cout << "buffer size: " << buffer.size() << endl;
-			for (set<Initial*>::iterator it = toAdd.begin(); it != toAdd.end();
-					it++) {
-				initials.insert(*it);
-			}
-			cout << "initial size: " << initials.size() << endl;
-			return result;
+		if ((value != -1) && (value != -2)){
+			result = initial;
+		}
+		iterationCount++;
+		if (iterationCount > maxIteration) {
+			return NULL;
+		}
+		if ((iterationCount % 100) == 0){
+			cout << "Iteration: " << iterationCount << endl;
 		}
 	}
+//	cout << "Problem 2" << endl;
+	return result;
 }
 
-set<Initial*>& State::getInitials() {
-	return initials;
+vector<Initial*>& State::getInitials() {
+	return stack;
 }
 
 /**
  * Returns the new op value of the initials which have been created.
  */
 double State::createNewInitials(Initial* initial, Blacklist* bl,
-		IndexReader& reader, set<Initial*>* destination) {
-	if (destination == NULL) {
-		destination = &initials;
-	}
-	cout << "initial id: " << initial->getItemId() << "bla" << (long) initial << endl;
+		IndexReader& reader) {
 	Item& item = reader.getItemById(initial->getItemId());
-	cout << "item id:" << item.getId() << endl;
 	int count = 0;
 	int degree = item.getDegree();
 	if (initial->getItemTrail().size() == 1) {
@@ -175,9 +108,9 @@ double State::createNewInitials(Initial* initial, Blacklist* bl,
 	vector<int>& origins = initial->getItemTrail();
 	StatementGroup* stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
-	cout << stmtGrs[0].getPropertyId() << endl;
+//	cout << stmtGrs[0].getPropertyId() << endl;
 	vector<int> propertyTrail = initial->getPropertyTrail();
-	cout << "start creating initials" << endl;
+//	cout << "start creating initials" << endl;
 	for (int i = 0; i < item.size(); i++) {
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		int* targets = stmtGrs[i].getTargets();
@@ -195,20 +128,23 @@ double State::createNewInitials(Initial* initial, Blacklist* bl,
 						(initial->getInpenalty() == 0) ?
 								1.0 :
 								(1.0 / ((1.0 / initial->getInpenalty()) + 1));
-				Initial* newInitial = new Initial(reader, targets[j], bl, newOp,
-						ip, itemTrail, propertyTrail);
-				destination->insert(newInitial);
+				if ((newOp*ip) > level){
+					Blacklist* blacklist = new Blacklist(bl);
+					Initial* newInitial = new Initial(reader, targets[j], blacklist, newOp,
+							ip, itemTrail, propertyTrail);
+					stack.push_back(newInitial);
+				}
 				itemTrail.pop_back();
 			}
 		}
 		propertyTrail.pop_back();
 	}
-	cout << "finish creation of " << count << "initials" << endl;
+//	cout << "finish creation of " << count << "initials" << endl;
 	return newOp;
 }
 
 void State::freeInitials() {
-	for (set<Initial*>::iterator it = initials.begin(); it != initials.end();
+	for (vector<Initial*>::iterator it = stack.begin(); it != stack.end();
 			it++) {
 		delete *it;
 	}

@@ -16,6 +16,7 @@
 #include "Initial.h"
 #include "datamodel/TopKEntry.h"
 #include "TopK.h"
+#include "DebugHelpers.h"
 
 #include <vector>
 #include <map>
@@ -25,8 +26,12 @@
 class TopKSearch {
 public:
 
-	TopKSearch(IndexReader& reader, int k);
+	TopKSearch(IndexReader& reader, int k, int maxLevel);
 	~TopKSearch();
+
+	static void test(){
+		cout << "test" << endl;
+	}
 
 	unordered_map<int, TopKEntry> search(int itemId);
 	void processInitial(Initial* initial, State& state);
@@ -38,6 +43,8 @@ protected:
 
 	IndexReader& reader;
 	TopK topK;
+	int k;
+	int maxLevel;
 
 	void addItemToResult(map<int, double>* result, int itemId,
 			vector<int>& itemTrail, double weight, Blacklist* blacklist,
@@ -46,19 +53,14 @@ protected:
 			vector<StatementGroup*>& searchTrailTargets, Item& item,
 			int propertyId);
 
-	// debug
-	void printTrail(vector<int>& trail) {
-		cout << "[ ";
-		for (size_t i = 0; i < trail.size(); i++) {
-			cout << trail[i] << " ";
-		}
-		cout << "]";
-	}
+
 
 };
 
-TopKSearch::TopKSearch(IndexReader& reader, int k) :
+TopKSearch::TopKSearch(IndexReader& reader, int k, int maxLevel) :
 		reader(reader), topK(k) {
+	this->maxLevel = maxLevel;
+	this->k = k;
 }
 
 TopKSearch::~TopKSearch() {
@@ -66,60 +68,62 @@ TopKSearch::~TopKSearch() {
 
 unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 
-	State state(&topK);
-	int debug = 0;
-
 	vector<int> itemTrail;
 	itemTrail.push_back(itemId);
 
 	vector<int> propertyTrail;
-
 	Initial* initial = new Initial(reader, itemId, NULL, 1.0, 1.0, itemTrail, propertyTrail);
-	state.createNewInitials(initial, NULL, reader);
 
-	cout << "#Initials= " << state.getInitials().size() << endl;
-
-	int maxIteration = 5000;
-	int iteration = 0;
+	int debug;
+	int maxIteration = 10000000;
+	int level = 1;
 	bool terminate = false;
-	while ((iteration < maxIteration) && (!terminate)) {
-		Initial* init = state.getBestChoice(debug, reader, iteration, maxIteration);
-		if (init == NULL){
-			break;
-		}
-		iteration++;
-		cout << "Iteration: " << iteration << endl;
-		processInitial(init, state);
-		state.deleteInitial(init);
-		terminate = topK.hasConverged();
-	}
+	while ((!terminate)  && (level <= maxLevel)){
+		cout << "Level: " << level << endl;
+		int iteration = 0;
+		topK.clear();
+		State state = State(&topK, level);
+		debug = 0;
+		state.createNewInitials(initial, NULL, reader);
+		while ((iteration < maxIteration) && (!terminate)) {
+			Initial* init = state.getNextInitial(debug, reader, iteration, maxIteration);
+			if (init == NULL){
+				break;
+			}
+			cout << "Iteration: " << iteration << endl;
+			processInitial(init, state);
+			delete init;
+			terminate = topK.hasConverged();
 
+		}
+		level++;
+	}
 	cout << "Debug:" << debug << endl;
-	cout << "initial size: " << state.getInitials().size() << endl;
 	cout << "score table size: " << topK.getContentsSize() << " terminate:  " << terminate
 			<< " Global Delta: " << topK.getGlobalDelta() << endl;
+	cout << "inUseCount: " << reader.getInUseCount() << endl;
 	return topK.getTopK();
 }
 
 void TopKSearch::processInitial(Initial* initial, State& state) {
-	Blacklist* bl = new Blacklist();
-	bl->setNext(initial->getBlacklist());
-	// create new initials
-	double newOp = state.createNewInitials(initial, bl, reader);
 	// compute similarities
 	int ip = 0;
-	map<int, double>* candidates = hasSimilarity(initial->getPropertyTrail(), initial->getItemTrail(), initial->getOP(), *bl, ip);
+	map<int, double>* candidates = hasSimilarity(initial->getPropertyTrail(), initial->getItemTrail(), initial->getOP(), *initial->getBlacklist(), ip);
 
-	double oldIp = initial->getInpenalty();
+	// create new initials
+	double newOp = state.createNewInitials(initial, initial->getBlacklist(), reader);
+
+	double oldIp = initial->getBaseIp();
 	double oldOp = initial->getOP();
 	cout << "old OP " << oldOp;
+	cout << " old IP " << oldIp;
 	if ((ip != 0) && (candidates->size() != 0)) {
 		double candidatesReduce = oldOp * oldIp;
 		double allReduce = candidatesReduce -  (oldOp * ( 1.0 / ( (double) ip + 1.0 )));
-		cout << "new OP: " << newOp <<  " --> allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
-		topK.updateTopK(candidates, allReduce, candidatesReduce, *bl);
+		cout << " new OP: " << newOp <<  " --> allReduce: " << allReduce << " candidatesReduce: " << candidatesReduce << endl;
+		topK.updateTopK(candidates, allReduce, candidatesReduce, *initial->getBlacklist());
 	}else{
-		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << " --> candidates size == 0" << endl;
+//		cout << " oldIP: " << oldIp << " newIp:" << (1.0 / ip) << " --> candidates size == 0" << endl;
 	}
 
 	delete candidates;
@@ -131,38 +135,39 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
  * Arguments:
  * 	propertyTrail	path to the item
  * 	itemTrail		blacklist of items according to the properties in the property trail
- * 	direction		direction of the first reader to use
  * 	weight			holds the inverted weight for the path in the property trail
+ * 	blacklist		blacklist with items that already got a score
+ * 	inpenalty		variable to return the inpenalty of the computation
  */
 map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 		vector<int> itemTrail, double weight,
 		Blacklist& blacklist, int& inpenalty) {
 
 	cout << "Call hasSimilarity itemTrail ";
-	printTrail(itemTrail);
+	DebugHelpers::printTrail(itemTrail);
 	cout << " OP: " << weight << " PropertyTrail ";
-	printTrail(propertyTrail);
+	DebugHelpers::printTrail(propertyTrail);
 	cout << endl;
 	map<int, double>* result = new map<int, double>();
 	if (propertyTrail.empty()) {
 		return result;
 	}
 
-	vector<bool*> inUse;
+	vector<int> inUse;
 
 	int itemId = itemTrail.back();
 
 	vector<StatementGroup*> searchTrailTargets;
 	vector<int> searchTrailPositions;
 
-	bool* flag;
-	Item& origin = reader.getItemById(itemId, flag); // the item where the two paths end
+	Item& origin = reader.getItemById(itemId); // the item where the two paths end
+
 
 	if (origin.getId() == 0) {
 		return result; // null item -> not valid
 	} else {
-		*flag = true;
-		inUse.push_back(flag);
+		reader.setInUseFlag(itemId);
+		inUse.push_back(itemId);
 	}
 
 	extendTrails(searchTrailPositions, searchTrailTargets, origin,
@@ -171,7 +176,7 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 	if (searchTrailTargets.size() == 0) {
 		// unset inUse flags
 		for (size_t i = 0; i < inUse.size(); i++) {
-			*inUse[i] = false;
+			reader.unsetInUseFlag(inUse[i]);
 		}
 		return result;
 	}
@@ -192,12 +197,11 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 			propertyTrailPosition = propertyTrail.size()
 					- searchTrailTargets.size() - 1;
 			if (propertyTrail.size() > searchTrailTargets.size()) { // property path is not at the end
-				bool* flag;
-				Item& item = reader.getItemById(id, flag);
+				Item& item = reader.getItemById(id);
 //				cout << "find: " << item.getId() << endl;
 				if (item.getId() != 0) {
-					*flag = true;
-					inUse.push_back(flag);
+					reader.setInUseFlag(id);
+					inUse.push_back(id);
 
 					extendTrails(searchTrailPositions, searchTrailTargets, item,
 							propertyTrail[propertyTrailPosition]);
@@ -217,7 +221,7 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 
 	// unset inUse flags
 	for (size_t i = 0; i < inUse.size(); i++) {
-		*inUse[i] = false;
+		reader.unsetInUseFlag(inUse[i]);
 	}
 
 	// multiply in-penalty

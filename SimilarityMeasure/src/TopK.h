@@ -28,6 +28,7 @@ public:
 	unordered_map<int, TopKEntry> getTopK();
 	double getGlobalDelta();
 	size_t getContentsSize();
+	void clear();
 
 protected:
 	unordered_map<int, TopKEntry> contents;
@@ -135,7 +136,7 @@ void TopK::reduceDeltas(double gReduction, Blacklist* bl){
 		contents.erase(toErase[i]);
 	}
 	globalDelta -= gReduction;
-	cout << "globalDelta: " << globalDelta << endl;
+//	cout << "globalDelta: " << globalDelta << endl;
 }
 
 bool TopK::hasConverged(){
@@ -156,6 +157,14 @@ double TopK::getGlobalDelta(){
 
 size_t TopK::getContentsSize(){
 	return contents.size();
+}
+
+void TopK::clear(){
+	contents.clear();
+	topElements.clear();
+	globalDelta = 1;
+	minTopId = 0;
+	minTopValue = 0;
 }
 
 void TopK::determineMin() {

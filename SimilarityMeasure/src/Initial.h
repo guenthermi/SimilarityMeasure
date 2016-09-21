@@ -14,9 +14,15 @@
 
 #include <vector>
 #include <iostream>
+#include <algorithm>
+
+using namespace std;
 
 class Initial {
 public:
+
+	static const int maxCacheSize = 7000000;
+
 	Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 			double baseIp, vector<int> itemTrail, vector<int> propertyTrail);
 	~Initial();
@@ -24,6 +30,7 @@ public:
 	double getPenalty(int& debug, double* deltaReduce, double min, int maxEffort);
 	double getInpenalty();
 
+	double getBaseIp();
 	Blacklist* getBlacklist();
 	int getItemId();
 	double getOP();
@@ -41,6 +48,7 @@ protected:
 	double op;
 	Blacklist* blacklist;
 	int itemId;
+	double baseIp;
 
 	IndexReader& reader;
 
@@ -66,12 +74,16 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 	this->itemTrail = itemTrail;
 	this->propertyTrail = propertyTrail;
 	this->inpenaltyAvailable = false;
+	this->baseIp = baseIp;
 	this->ipMin = baseIp;
 	this->effort = 0;
 	itemTrail.push_back(itemId);
 }
 
 Initial::~Initial() {
+	if (blacklist != NULL){
+		delete blacklist;
+	}
 }
 
 double Initial::getInpenalty() {
@@ -109,18 +121,17 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 		return -1;
 	}
 
-	vector<bool*> inUse;
+	vector<int> inUse;
 	if (item == NULL) {
-		bool* flag;
-		item = &reader.getItemById(itemId, flag);
+		item = &reader.getItemById(itemId);
 		if (item->getId() == 0) {
 			ipMin = 0;
 			inpenaltyAvailable = true;
 			cout << "should not get here" << endl;
 			return 0;
 		}
-		*flag = true;
-		inUse.push_back(flag);
+		reader.setInUseFlag(itemId);
+		inUse.push_back(itemId);
 	}
 	effort = 0;
 	int resultNumber = 0;
@@ -134,7 +145,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 		cout << "ERROR: should not get here" << endl;
 		// unset inUse flags
 		for (size_t i = 0; i < inUse.size(); i++) {
-			*inUse[i] = false;
+			reader.unsetInUseFlag(inUse[i]);
 		}
 		ipMin = 0;
 		inpenaltyAvailable = true;
@@ -149,10 +160,9 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 					// go one layer deeper
 				int id =
 						(*searchTrailTargets.back()).getTargets()[searchTrailPositions.back()];
-				bool* flag;
-				Item& nextItem = reader.getItemById(id, flag);
-				*flag = true;
-				inUse.push_back(flag);
+				Item& nextItem = reader.getItemById(id);
+				reader.setInUseFlag(id);
+				inUse.push_back(id);
 				effort++;
 
 				searchTrailPositions.back()++;int
@@ -164,14 +174,27 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 				continue;
 			}
 		}
+		if ( effort > min((maxEffort* pow(1.0/minIp, 1./2.) ), (double) maxCacheSize) ) {
+			debug++;
+			if (resultNumber > 1){
+				double oldIpMin = ipMin;
+				ipMin = (double) 1.0 / (resultNumber-1);
+				if (deltaReduce){
+					(*deltaReduce) = (oldIpMin - ipMin)*op;
+				}
+			}
+			// unset inUse flags
+			for (size_t i = 0; i < inUse.size(); i++) {
+				reader.unsetInUseFlag(inUse[i]);
+			}
+			return -1;
+		}
 		if (searchTrailTargets.size() == propertyTrail.size()) {
 			resultNumber += searchTrailTargets.back()->size();
 			if (resultNumber > 1){
-				if ( (((double) 1.0 / (resultNumber-1)) < minIp) || (effort > maxEffort) ) {
+				if ( (((double) 1.0 / (resultNumber-1)) < minIp) || (effort > min((maxEffort* pow(1.0/minIp, 1./2.) ), (double) maxCacheSize) ) ) {
 					if (effort > maxEffort){
 						debug++;
-					}else{
-						debug--;
 					}
 					if (resultNumber > 1){
 						double oldIpMin = ipMin;
@@ -182,7 +205,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 					}
 					// unset inUse flags
 					for (size_t i = 0; i < inUse.size(); i++) {
-						*inUse[i] = false;
+						reader.unsetInUseFlag(inUse[i]);
 					}
 					return -1;
 				}
@@ -198,7 +221,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 
 	// unset inUse flags
 	for (size_t i = 0; i < inUse.size(); i++) {
-		*inUse[i] = false;
+		reader.unsetInUseFlag(inUse[i]);
 	}
 	if (resultNumber == 0) {
 		cout << "result number = 0. This should not happen" << endl;
@@ -219,6 +242,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 	}
 	ipMin = ip;
 	inpenaltyAvailable = true;
+//	cout << "return not -1 " << endl;
 	return ip * op;
 }
 
@@ -238,6 +262,10 @@ void Initial::extendTrails(vector<int>& searchTrailPositions,
 double Initial::getPenalty(int& debug, double* deltaReduce, double min, int maxEffort) {
 	double minIp = min / op;
 	return computePenalty(debug, deltaReduce, NULL, minIp, maxEffort);
+}
+
+double Initial::getBaseIp(){
+	return baseIp;
 }
 
 Blacklist* Initial::getBlacklist() {

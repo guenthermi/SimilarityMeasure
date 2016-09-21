@@ -14,58 +14,46 @@
 
 using namespace std;
 
-class Blacklist{
+class Blacklist {
 public:
 
 	Blacklist();
+	Blacklist(Blacklist* bl);
 
 	bool hasItem(int id);
-	Blacklist* getNext();
 	unordered_set<int>& getItems();
 	void addItem(int id);
-//	addItems(set<int> ids)
-	void setNext(Blacklist* bl);
 
 protected:
-
-	Blacklist* next;
 	unordered_set<int> items;
 	bool end;
 
 };
 
-
-Blacklist::Blacklist(){
-	next = NULL;
+Blacklist::Blacklist() {
 }
 
-bool Blacklist::hasItem(int id){
-	if (items.find(id) != items.end()){
-		return true;
-	}else{
-		if (next == NULL){
-			return false;
-		}else{
-			return next->hasItem(id);
-		}
+
+Blacklist::Blacklist(Blacklist* bl) {
+	if (bl != NULL) {
+		items.insert(bl->getItems().begin(), bl->getItems().end());
 	}
 }
 
-Blacklist* Blacklist::getNext(){
-	return next;
+bool Blacklist::hasItem(int id) {
+	if (items.find(id) != items.end()) {
+		return true;
+	} else {
+		return false;
+	}
 }
 
-
-unordered_set<int>& Blacklist::getItems(){
+unordered_set<int>& Blacklist::getItems() {
 	return items;
 }
 
-void Blacklist::addItem(int id){
+void Blacklist::addItem(int id) {
 	items.insert(id);
-}
-
-void Blacklist::setNext(Blacklist* bl){
-	next = bl;
 }
 
 #endif /* BLACKLIST_H_ */
