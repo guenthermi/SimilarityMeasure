@@ -61,9 +61,13 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 		stack.pop_back();
 		double deltaReduce = 0;
 		double value = initial->getPenalty(debug, &deltaReduce, level,
-				pow((1.0 / level), 1./2.));
+				(1.0 / level));
 		if (value == -1){
 			if (deltaReduce != 0) {
+				if (deltaReduce < 0){
+					cout << "error"<< endl;
+					while(1);
+				}
 				topK->reduceDeltas(deltaReduce, initial->getBlacklist());
 			}else{
 				iterationCount--;

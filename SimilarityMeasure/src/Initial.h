@@ -21,7 +21,7 @@ using namespace std;
 class Initial {
 public:
 
-	static const int maxCacheSize = 7000000;
+//	static const int maxCacheSize = 7000000;
 
 	Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 			double baseIp, vector<int> itemTrail, vector<int> propertyTrail);
@@ -40,7 +40,7 @@ public:
 
 protected:
 
-	void extendTrails(vector<int>& searchTrailPositions,
+	bool extendTrails(vector<int>& searchTrailPositions,
 			vector<StatementGroup*>& searchTrailTargets, Item& item,
 			int propertyId); // TODO share with AStarSearch
 
@@ -161,25 +161,31 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 				int id =
 						(*searchTrailTargets.back()).getTargets()[searchTrailPositions.back()];
 				Item& nextItem = reader.getItemById(id);
-				reader.setInUseFlag(id);
-				inUse.push_back(id);
+				if (reader.setInUseFlag(id)){
+					inUse.push_back(id);
+				}else{
+					inUse.push_back(0);
+				}
 				effort++;
 
-				searchTrailPositions.back()++;int
-				propertyTrailPosition = propertyTrail.size()
+				searchTrailPositions.back()++;
+				int propertyTrailPosition = propertyTrail.size()
 						- searchTrailTargets.size() - 1;
 
-				extendTrails(searchTrailPositions, searchTrailTargets, nextItem,
-						propertyTrail[propertyTrailPosition]);
+				if (!extendTrails(searchTrailPositions, searchTrailTargets, nextItem,
+						propertyTrail[propertyTrailPosition])){
+					reader.unsetInUseFlag(inUse.back());
+					inUse.pop_back();
+				}
 				continue;
 			}
 		}
-		if ( effort > min((maxEffort* pow(1.0/minIp, 1./2.) ), (double) maxCacheSize) ) {
+		if ( effort > (maxEffort* (1.0 / minIp) ) ) {
 			debug++;
 			if (resultNumber > 1){
 				double oldIpMin = ipMin;
 				ipMin = (double) 1.0 / (resultNumber-1);
-				if (deltaReduce){
+				if ((deltaReduce) && (oldIpMin > ipMin)){
 					(*deltaReduce) = (oldIpMin - ipMin)*op;
 				}
 			}
@@ -192,10 +198,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 		if (searchTrailTargets.size() == propertyTrail.size()) {
 			resultNumber += searchTrailTargets.back()->size();
 			if (resultNumber > 1){
-				if ( (((double) 1.0 / (resultNumber-1)) < minIp) || (effort > min((maxEffort* pow(1.0/minIp, 1./2.) ), (double) maxCacheSize) ) ) {
-					if (effort > maxEffort){
-						debug++;
-					}
+				if ( ((double) 1.0 / (resultNumber-1)) < minIp ) {
 					if (resultNumber > 1){
 						double oldIpMin = ipMin;
 						ipMin = (double) 1.0 / (resultNumber-1);
@@ -214,6 +217,8 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 		// go one layer upper
 		searchTrailTargets.pop_back();
 		searchTrailPositions.pop_back();
+		reader.unsetInUseFlag(inUse.back());
+		inUse.pop_back();
 		if (searchTrailTargets.size() == 0) {
 			break;
 		}
@@ -246,7 +251,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 	return ip * op;
 }
 
-void Initial::extendTrails(vector<int>& searchTrailPositions,
+bool Initial::extendTrails(vector<int>& searchTrailPositions,
 		vector<StatementGroup*>& searchTrailTargets, Item& item, int propertyId) {
 	StatementGroup* stmtGrs = item.getStatementGroups();
 	for (size_t i = 0; i < item.size(); i++) {
@@ -256,7 +261,9 @@ void Initial::extendTrails(vector<int>& searchTrailPositions,
 	}
 	if (searchTrailTargets.size() > searchTrailPositions.size()) { // found an element
 		searchTrailPositions.push_back(0);
+		return true;
 	}
+	return false;
 }
 
 double Initial::getPenalty(int& debug, double* deltaReduce, double min, int maxEffort) {

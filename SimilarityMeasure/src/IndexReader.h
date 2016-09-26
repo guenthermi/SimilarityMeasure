@@ -33,7 +33,7 @@ public:
 	~IndexReader();
 
 	Item& getItemById(int id);
-	void setInUseFlag(int id);
+	bool setInUseFlag(int id);
 	void unsetInUseFlag(int id);
 	int getInUseCount();
 
@@ -104,6 +104,9 @@ IndexReader::~IndexReader() {
 }
 
 Item& IndexReader::getItemById(int id) {
+	if (id == 0){
+		return nullItem;
+	}
 	CacheLine* ii = cache[id];
 	if (ii != NULL) {
 		cacheUsed++;
@@ -122,16 +125,21 @@ Item& IndexReader::getItemById(int id) {
 
 }
 
-void IndexReader::setInUseFlag(int id) {
+bool IndexReader::setInUseFlag(int id) {
 //	cout << "lookup: " << id << " is at the end: " << (cache.find(id) == cache.end()) << endl;
 	bool& inUse = cache[id]->inUse;
-	inUseCount -= inUse;
+	if (inUse){
+		return false;
+	}
 	inUse = true;
 	inUseCount++;
-
+	return true;
 }
 
 void IndexReader::unsetInUseFlag(int id) {
+	if (id == 0){
+		return;
+	}
 	inUseCount-= cache[id]->inUse;
 	cache[id]->inUse = false;
 	if (superSize){

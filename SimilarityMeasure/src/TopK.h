@@ -26,6 +26,7 @@ public:
 	void reduceDeltas(double gReduction, Blacklist* bl);
 	bool hasConverged();
 	unordered_map<int, TopKEntry> getTopK();
+	unordered_map<int, TopKEntry> getContents();
 	double getGlobalDelta();
 	size_t getContentsSize();
 	void clear();
@@ -166,6 +167,11 @@ void TopK::clear(){
 	minTopId = 0;
 	minTopValue = 0;
 }
+
+unordered_map<int, TopKEntry> TopK::getContents(){
+	return contents;
+}
+
 
 void TopK::determineMin() {
 	double minValue = 1;

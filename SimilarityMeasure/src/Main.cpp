@@ -18,7 +18,39 @@
 
 using namespace std;
 
-void printTopK(unordered_map<int, TopKEntry> top, WebApi* api){
+class Main{
+public:
+	int main();
+	void printTopK(unordered_map<int, TopKEntry> top, WebApi* api);
+
+};
+
+int Main::main() {
+	cout << "Similarity Measure" << endl;
+
+	int k;
+	int maxIteration;
+	int itemId;
+	int acc;
+
+	cout << "ItemID: Q";
+	cin >> itemId;
+	cout << "Number of results (k): ";
+	cin >> k;
+	cout << "Maximal Accurancy: ";
+	cin >> acc;
+
+	IndexReader reader("indexFiles/combinedIndexBin");
+	TopKSearch tks(reader, k, acc);
+	WebApi api;
+
+	unordered_map<int, TopKEntry> top = tks.search(itemId);
+	printTopK(top, &api);
+
+	return 0;
+}
+
+void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api){
 	cout << "TOP K:" << endl;
 	for (unordered_map<int, TopKEntry>::iterator it = top.begin(); it != top.end(); it++){
 		string name = "Q" + std::to_string(it->first);
@@ -49,6 +81,11 @@ void testIndexReader(){
 	cout << "Complete IndexReader Test" << endl << endl;
 }
 
+int main(){
+	Main myMain = Main();
+	return myMain.main();
+}
+
 void testAStarSearch() {
 
 	// Items for testing
@@ -71,32 +108,11 @@ void testAStarSearch() {
 	TopKSearch tks(reader, 3, 7);
 
 	WebApi api;
+	Main myMain = Main();
 
 	unordered_map<int, TopKEntry> top = tks.search(testItems[1]);
-	printTopK(top, &api);
+	myMain.printTopK(top, &api);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
-}
-
-int main() {
-	cout << "Similarity Measure" << endl;
-
-	int k;
-	int maxIteration;
-	int itemId;
-
-	cout << "Number of results (k): ";
-	cin >> k;
-	cout << "ItemID: Q";
-	cin >> itemId;
-
-	IndexReader reader("indexFiles/combinedIndexBin");
-	TopKSearch tks(reader, k, 2);
-	WebApi api;
-
-	unordered_map<int, TopKEntry> top = tks.search(itemId);
-	printTopK(top, &api);
-
-	return 0;
 }
 
