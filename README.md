@@ -2,7 +2,8 @@
 SimilarityMeasure - compute for one node in a graph the most similar one
 
 ## Build
-To build SimilarityMeasure you need to install the development package for libcurl. For me this is [libcurl4-openssl-dev](https://packages.debian.org/de/sid/libcurl4-openssl-dev).
+To build SimilarityMeasure you need a C++11 Compiler and the development package for libcurl. For me this is [libcurl4-openssl-dev](https://packages.debian.org/de/sid/libcurl4-openssl-dev).
+Please use the g++ Compiler for C++ Version 11.
 
 ## Run
 
