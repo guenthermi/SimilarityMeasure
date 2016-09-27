@@ -95,6 +95,7 @@ IndexReader::IndexReader(string path) {
 	fileUsed = 0;
 	nullItem = Item();
 
+	cout << "Loading index..." << endl;
 	index.init(path + ".map", path + ".data");
 	cout << "Index is loaded" << endl;
 }

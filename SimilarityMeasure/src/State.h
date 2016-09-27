@@ -61,7 +61,7 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 		stack.pop_back();
 		double deltaReduce = 0;
 		double value = initial->getPenalty(debug, &deltaReduce, level,
-				(1.0 / level));
+				sqrt(1.0 / level));
 		if (value == -1){
 			if (deltaReduce != 0) {
 				if (deltaReduce < 0){

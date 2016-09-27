@@ -40,7 +40,10 @@ string WebApi::getLabelById(int id) {
 	url << baseUrl << "?action=wbgetentities&format=json&props=labels&ids=Q"
 			<< id << "&languages=en";
 	string result = sendRequest(url.str());
-
+	if (result == ""){
+		cerr << "could not request label for Q" << id << endl;
+		return "";
+	}
 	string label = parseLabel(&result);
 
 	if (label == "") {

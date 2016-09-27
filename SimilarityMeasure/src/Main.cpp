@@ -18,14 +18,26 @@
 
 using namespace std;
 
-class Main{
+class Main {
 public:
-	int main();
+	int main(int argc, const char* argv[]);
 	void printTopK(unordered_map<int, TopKEntry> top, WebApi* api);
+
+protected:
+	string helpText =
+			"usage: similarityMeasure [indexFileLocation/IndexFileName]\n\n"
+			"More information about similarityMeasure: "
+			"https://github.com/guenthermi/SimilarityMeasure";
 
 };
 
-int Main::main() {
+int Main::main(int argc, const char* argv[]) {
+	if (argc != 2){
+		cout << helpText << endl;
+		return 0;
+	}
+
+
 	cout << "Similarity Measure" << endl;
 
 	int k;
@@ -39,8 +51,8 @@ int Main::main() {
 	cin >> k;
 	cout << "Maximal Accurancy: ";
 	cin >> acc;
-
-	IndexReader reader("indexFiles/combinedIndexBin");
+	string path = string(argv[1]);
+	IndexReader reader(path);
 	TopKSearch tks(reader, k, acc);
 	WebApi api;
 
@@ -50,60 +62,60 @@ int Main::main() {
 	return 0;
 }
 
-void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api){
+void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api) {
 	cout << "TOP K:" << endl;
-	for (unordered_map<int, TopKEntry>::iterator it = top.begin(); it != top.end(); it++){
+	for (unordered_map<int, TopKEntry>::iterator it = top.begin();
+			it != top.end(); it++) {
 		string name = "Q" + std::to_string(it->first);
-		if (api != NULL){
+		if (api != NULL) {
 			string label = api->getLabelById(it->first);
-			if (label != ""){
+			if (label != "") {
 				name = label + "(Q" + std::to_string(it->first) + ")";
 			}
 		}
-		cout << "\t" << "(" << it->second.weight << " ; " << it->second.delta << ") \t: " << name  << endl;
+		cout << "\t" << "(" << it->second.weight << " ; " << it->second.delta
+				<< ") \t: " << name << endl;
 	}
 }
 
-void testIndexReader(){
+void testIndexReader() {
 	cout << "Start Testing - IndexReader" << endl;
 	IndexReader reader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 	Item* item;
-	for (int i=0; i<1000; i++){
+	for (int i = 0; i < 1000; i++) {
 		item = &reader.getItemById(i);
 	}
 	cout << item->getDegree() << endl;
-	cout << item->getId() << " -- "
-			<< item->getStatementGroups()[0].size() << " -- "
-			<< item->getStatementGroups()[0].getPropertyId() << " -- "
+	cout << item->getId() << " -- " << item->getStatementGroups()[0].size()
+			<< " -- " << item->getStatementGroups()[0].getPropertyId() << " -- "
 			<< item->getStatementGroups()[0].getTargets()[0] << endl;
 
 	cout << "Complete IndexReader Test" << endl << endl;
 }
 
-int main(){
+int main(int argc, const char* argv[]) {
 	Main myMain = Main();
-	return myMain.main();
+	return myMain.main(argc, argv);
 }
 
 void testAStarSearch() {
 
 	// Items for testing
-	int testItems[] = {
-		22101573, 	// show based on Amadeus
-		22101603, 	// russian encyclopedic article
-		421, 		// UFO
-		2001293, 	// Tine Reymer (singer, actor) -> sehr langsam?!
-		567, 		// Angela Merkel
-		183, 		// Germany
-		8337, 		// Harry Potter (novel series)
-		111, 		// Mars
-		39275		// Mouse
-	};
+	int testItems[] = { 22101573, 	// show based on Amadeus
+			22101603, 	// russian encyclopedic article
+			421, 		// UFO
+			2001293, 	// Tine Reymer (singer, actor) -> sehr langsam?!
+			567, 		// Angela Merkel
+			183, 		// Germany
+			8337, 		// Harry Potter (novel series)
+			111, 		// Mars
+			39275		// Mouse
+			};
 
 	cout << "Start Testing - AStarSearch" << endl;
 	IndexReader reader(
-				"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
+			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
 	TopKSearch tks(reader, 3, 7);
 
