@@ -5,9 +5,8 @@ SimilarityMeasure - compute for one node in a graph the most similar one
 To build SimilarityMeasure you need to install the development package for libcurl
 
 ## Run
-You can run SimilarityMeasure as follows:
 
-SimilarityMeasures [indexFileLocation/IndexFileName]
+SimilarityMeasure [indexFileLocation/IndexFileName]
 
 ## Index Files
 You need an index out of a .map and a .data file (examples are available below). You have to store the files in the same folder with the same name.
