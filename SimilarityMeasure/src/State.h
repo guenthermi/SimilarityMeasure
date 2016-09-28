@@ -72,13 +72,19 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 			}else{
 				iterationCount--;
 			}
+			delete initial->getBlacklist();
 			delete initial;
 		}
 		if (value == -2){
+			initial->getBlacklist()->activate();
 			createNewInitials(initial, initial->getBlacklist(), reader);
+			if (!initial->getBlacklist()->inUse()){
+				delete initial->getBlacklist();
+			}
 			delete initial;
 		}
 		if ((value != -1) && (value != -2)){
+			initial->getBlacklist()->activate();
 			result = initial;
 		}
 		iterationCount++;

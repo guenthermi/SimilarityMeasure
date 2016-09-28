@@ -93,6 +93,9 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 			}
 			cout << "Iteration: " << iteration << endl;
 			processInitial(init, state);
+			if (!init->getBlacklist()->inUse()){
+				delete init->getBlacklist();
+			}
 			delete init;
 			terminate = topK.hasConverged();
 

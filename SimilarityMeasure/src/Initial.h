@@ -81,9 +81,6 @@ Initial::Initial(IndexReader& reader, int itemId, Blacklist* bl, double op,
 }
 
 Initial::~Initial() {
-	if (blacklist != NULL){
-		delete blacklist;
-	}
 }
 
 double Initial::getInpenalty() {
@@ -120,7 +117,6 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 		*deltaReduce = 0;
 		return -1;
 	}
-
 	vector<int> inUse;
 	if (item == NULL) {
 		item = &reader.getItemById(itemId);
@@ -248,6 +244,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 	ipMin = ip;
 	inpenaltyAvailable = true;
 //	cout << "return not -1 " << endl;
+	cout << "return something else" << endl;
 	return ip * op;
 }
 
