@@ -33,11 +33,11 @@ public:
 	~State();
 	Initial* getNextInitial(int& debug, IndexReader& reader,
 			int& iterationCount, int& maxIteration);
-	vector<Initial*>& getInitials();
 	double createNewInitials(Initial* initial, Blacklist* bl,
 			IndexReader& reader);
 
 protected:
+
 	vector<Initial*> stack;
 	void freeInitials();
 	double level;
@@ -91,10 +91,6 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 	}
 //	cout << "Problem 2" << endl;
 	return result;
-}
-
-vector<Initial*>& State::getInitials() {
-	return stack;
 }
 
 /**
