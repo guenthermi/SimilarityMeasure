@@ -10,7 +10,6 @@
 #include "IndexReader.h"
 #include "TopKSearch.h"
 #include "IndexReader.h"
-#include "WebApi.h"
 
 #include <iostream>
 #include <unordered_map>
@@ -21,7 +20,7 @@ using namespace std;
 class Main {
 public:
 	int main(int argc, const char* argv[]);
-	void printTopK(unordered_map<int, TopKEntry> top, WebApi* api);
+	void printTopK(unordered_map<int, TopKEntry> top);
 
 protected:
 	string helpText =
@@ -54,25 +53,18 @@ int Main::main(int argc, const char* argv[]) {
 	string path = string(argv[1]);
 	IndexReader reader(path);
 	TopKSearch tks(reader, k, acc);
-	WebApi api;
 
 	unordered_map<int, TopKEntry> top = tks.search(itemId);
-	printTopK(top, &api);
+	printTopK(top);
 
 	return 0;
 }
 
-void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api) {
+void Main::printTopK(unordered_map<int, TopKEntry> top) {
 	cout << "TOP K:" << endl;
 	for (unordered_map<int, TopKEntry>::iterator it = top.begin();
 			it != top.end(); it++) {
 		string name = "Q" + std::to_string(it->first);
-		if (api != NULL) {
-			string label = api->getLabelById(it->first);
-			if (label != "") {
-				name = label + "(Q" + std::to_string(it->first) + ")";
-			}
-		}
 		cout << "\t" << "(" << it->second.weight << " ; " << it->second.delta
 				<< ") \t: " << name << endl;
 	}
@@ -119,11 +111,10 @@ void testAStarSearch() {
 
 	TopKSearch tks(reader, 3, 7);
 
-	WebApi api;
 	Main myMain = Main();
 
 	unordered_map<int, TopKEntry> top = tks.search(testItems[1]);
-	myMain.printTopK(top, &api);
+	myMain.printTopK(top);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }
