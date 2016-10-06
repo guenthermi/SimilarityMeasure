@@ -240,13 +240,13 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 		reader.unsetInUseFlag(inUse[i]);
 	}
 
+	inpenalty--; // ignore origin itself
 	// multiply in-penalty
 	for (map<int, double>::iterator it = result->begin(); it != result->end();
 			it++) {
 		it->second *= 1.0 / inpenalty;
 	}
 
-	inpenalty--;
 	return result;
 
 }

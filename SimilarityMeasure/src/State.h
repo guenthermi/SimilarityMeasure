@@ -101,11 +101,11 @@ double State::createNewInitials(Initial* initial, Blacklist* bl,
 	Item& item = reader.getItemById(initial->getItemId());
 	int count = 0;
 	int degree = item.getDegree();
-	if (initial->getItemTrail().size() == 1) {
-		degree++;
-	}
-	double newOp = ((double) (1.0 / (degree - 1))) * initial->getOP(); // degree reduced by origin
-	vector<int>& origins = initial->getItemTrail();
+//	if (initial->getItemTrail().size() == 1) {
+//		degree++;
+//	}
+	double newOp = ((double) (1.0 / (degree))) * initial->getOP(); // degree reduced by origin
+//	vector<int>& origins = initial->getItemTradeil();
 	StatementGroup* stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
 //	cout << stmtGrs[0].getPropertyId() << endl;
@@ -115,14 +115,14 @@ double State::createNewInitials(Initial* initial, Blacklist* bl,
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		int* targets = stmtGrs[i].getTargets();
 		for (int j = 0; j < stmtGrs[i].size(); j++) {
-			bool valid = true;
-			for (int k = 0; k < origins.size(); k++) {
-				if (origins[k] == targets[j]) {
-					valid = false;
-				}
-			}
+//			bool valid = true;
+//			for (int k = 0; k < origins.size(); k++) {
+//				if (origins[k] == targets[j]) {
+//					valid = false;
+//				}
+//			}
 			count++;
-			if (valid) {
+//			if (valid) {
 				itemTrail.push_back(targets[j]);
 				double ip =
 						(initial->getInpenalty() == 0) ?
@@ -135,7 +135,7 @@ double State::createNewInitials(Initial* initial, Blacklist* bl,
 					stack.push_back(newInitial);
 				}
 				itemTrail.pop_back();
-			}
+//			}
 		}
 		propertyTrail.pop_back();
 	}
