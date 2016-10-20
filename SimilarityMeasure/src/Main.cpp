@@ -96,12 +96,13 @@ int Main::main(int argc, const char* argv[]) {
 
 	unordered_map<int, TopKEntry> top = tks.search(itemId);
 
-	tracker->print();
 	printTopK(top, *stream);
+
 	if (log != NULL){
 		delete log;
 	}
 	if (tracker != NULL){
+		tracker->print();
 		delete tracker;
 	}
 

@@ -87,7 +87,9 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 		(*log) << "Level: " << level << endl;
 		int iteration = 0;
 		topK.clear();
-		track->clearListeners();
+		if (track != NULL){
+			track->clearListeners();
+		}
 		State state = State(&topK, level, log);
 		debug = 0;
 		state.createNewInitials(initial, NULL, reader, false);
