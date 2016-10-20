@@ -17,6 +17,7 @@
 #include "datamodel/TopKEntry.h"
 #include "TopK.h"
 #include "DebugHelpers.h"
+#include "Tracker.h"
 
 #include <vector>
 #include <map>
@@ -28,7 +29,8 @@
 class TopKSearch {
 public:
 
-	TopKSearch(IndexReader& reader, int k, int acc, ostream* log);
+	TopKSearch(IndexReader& reader, int k, int acc, ostream* log,
+			Tracker* track);
 	~TopKSearch();
 
 	unordered_map<int, TopKEntry> search(int itemId);
@@ -40,6 +42,7 @@ protected:
 	int k;
 	int acc;
 	ostream* log;
+	Tracker* track;
 
 	void processInitial(Initial* initial, State& state);
 	map<int, double>* hasSimilarity(vector<int> propertyTrail,
@@ -55,11 +58,13 @@ protected:
 
 };
 
-TopKSearch::TopKSearch(IndexReader& reader, int k, int acc, ostream* log) :
+TopKSearch::TopKSearch(IndexReader& reader, int k, int acc, ostream* log,
+		Tracker* track) :
 		reader(reader), topK(k, log) {
 	this->acc = acc;
 	this->k = k;
 	this->log = log;
+	this->track = track;
 }
 
 TopKSearch::~TopKSearch() {
@@ -82,6 +87,7 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 		(*log) << "Level: " << level << endl;
 		int iteration = 0;
 		topK.clear();
+		track->clearListeners();
 		State state = State(&topK, level, log);
 		debug = 0;
 		state.createNewInitials(initial, NULL, reader, false);
@@ -128,6 +134,13 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
 				- (oldOp * (1.0 / ((double) ip + 1.0)));
 		(*log) << " new OP: " << newOp << " --> allReduce: " << allReduce
 				<< " candidatesReduce: " << candidatesReduce << endl;
+		if (track != NULL) {
+			for (map<int, double>::iterator it = candidates->begin();
+					it != candidates->end(); it++) {
+				track->notify(it->first, it->second, initial->getItemTrail(),
+						initial->getPropertyTrail());
+			}
+		}
 		topK.updateTopK(candidates, allReduce, candidatesReduce,
 				*initial->getBlacklist());
 	}
