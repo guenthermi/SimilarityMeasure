@@ -7,7 +7,11 @@ Please use the g++ Compiler for C++ Version 11.
 
 ## Run
 
-similarityMeasure [indexFileLocation/IndexFileName]
+````
+similarityMeasure indexFileLocation/IndexFileName [LogFile] [TrackFile]
+````
+
+If you set `logFile=stdout` the output is printet to stdout as usual. If you define a `TrackFile` you will be asked later to give a comma seperated list of Item Ids for that you want to track the similarity aspects.
 
 ## Index Files
 You need an index out of a .map and a .data file (examples are available below). You have to store the files in the same folder with the same name.
