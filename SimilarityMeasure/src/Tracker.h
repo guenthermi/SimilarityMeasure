@@ -44,7 +44,7 @@ protected:
 		vector<int> propertyTrail;
 	};
 
-	static bool comparator(Aspect& a1, Aspect a2){
+	static bool comparator(const Aspect& a1, const Aspect a2){
 		return (a1.weight > a2.weight);
 	}
 
