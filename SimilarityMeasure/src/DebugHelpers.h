@@ -10,18 +10,19 @@
 
 #include <vector>
 #include <iostream>
+#include <ostream>
 
 using namespace std;
 
 class DebugHelpers{
 public:
 	// debug
-	static void printTrail(vector<int>& trail) {
-		cout << "[ ";
+	static void printTrail(vector<int>& trail, ostream& stream) {
+		stream << "[ ";
 		for (size_t i = 0; i < trail.size(); i++) {
-			cout << trail[i] << " ";
+			stream << trail[i] << " ";
 		}
-		cout << "]";
+		stream << "]";
 	}
 
 };

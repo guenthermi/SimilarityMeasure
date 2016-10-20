@@ -20,6 +20,8 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+#include <fstream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -29,12 +31,13 @@ public:
 	const double kLevelFactor = 0.1;
 	const double kBufferVolume = 1000;
 
-	State(TopK* topK, int level);
+	State(TopK* topK, int level, ostream* log);
 	~State();
 	Initial* getNextInitial(int& debug, IndexReader& reader,
 			int& iterationCount, int& maxIteration);
 	double createNewInitials(Initial* initial, Blacklist* bl,
-			IndexReader& reader);
+			IndexReader& reader, bool hasResults);
+
 
 protected:
 
@@ -42,11 +45,13 @@ protected:
 	void freeInitials();
 	double level;
 	TopK* topK;
+	ostream* log;
 };
 
-State::State(TopK* topK, int level) {
+State::State(TopK* topK, int level, ostream* log) {
 	this->level = pow(0.1, level);
 	this->topK = topK;
+	this->log = log;
 }
 
 State::~State() {
@@ -62,34 +67,35 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 		double deltaReduce = 0;
 		double value = initial->getPenalty(debug, &deltaReduce, level,
 				sqrt(1.0 / level));
-		if (value == -1){
+		if (value == -1) {
 			if (deltaReduce != 0) {
-				if (deltaReduce < 0){
-					cout << "error"<< endl;
-					while(1);
+				if (deltaReduce < 0) {
+					cerr << "error" << endl;
+					while (1)
+						;
 				}
 				topK->reduceDeltas(deltaReduce, initial->getBlacklist());
-			}else{
+			} else {
 				iterationCount--;
 			}
 			delete initial;
 		}
-		if (value == -2){
-			createNewInitials(initial, initial->getBlacklist(), reader);
+		if (value == -2) {
+			createNewInitials(initial, initial->getBlacklist(), reader, false);
 			delete initial;
 		}
-		if ((value != -1) && (value != -2)){
+		if ((value != -1) && (value != -2)) {
 			result = initial;
 		}
 		iterationCount++;
 		if (iterationCount > maxIteration) {
 			return NULL;
 		}
-		if ((iterationCount % 100) == 0){
-			cout << "Iteration: " << iterationCount << endl;
+		if ((iterationCount % 100) == 0) {
+			(*log) << "Iteration: " << iterationCount << endl;
 		}
 	}
-//	cout << "Problem 2" << endl;
+
 	return result;
 }
 
@@ -97,49 +103,34 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
  * Returns the new op value of the initials which have been created.
  */
 double State::createNewInitials(Initial* initial, Blacklist* bl,
-		IndexReader& reader) {
+		IndexReader& reader, bool hasResults) {
 	Item& item = reader.getItemById(initial->getItemId());
-	int count = 0;
 	int degree = item.getDegree();
-	if (initial->getItemTrail().size() == 1) {
-		degree++;
-	}
-	double newOp = ((double) (1.0 / (degree - 1))) * initial->getOP(); // degree reduced by origin
-	vector<int>& origins = initial->getItemTrail();
+	double newOp = ((double) (1.0 / (degree))) * initial->getOP();
 	StatementGroup* stmtGrs = item.getStatementGroups();
 	vector<int> itemTrail = initial->getItemTrail();
-//	cout << stmtGrs[0].getPropertyId() << endl;
 	vector<int> propertyTrail = initial->getPropertyTrail();
-//	cout << "start creating initials" << endl;
 	for (int i = 0; i < item.size(); i++) {
 		propertyTrail.push_back(stmtGrs[i].getPropertyId());
 		int* targets = stmtGrs[i].getTargets();
 		for (int j = 0; j < stmtGrs[i].size(); j++) {
-			bool valid = true;
-			for (int k = 0; k < origins.size(); k++) {
-				if (origins[k] == targets[j]) {
-					valid = false;
-				}
+
+			itemTrail.push_back(targets[j]);
+			int offset = hasResults ? 1 : 0;
+			double ip =
+					(initial->getInpenalty() == 0) ?
+							1.0 :
+							(1.0 / ((1.0 / initial->getInpenalty()) + offset));
+			if ((newOp * ip) > level) {
+				Blacklist* blacklist = new Blacklist(bl);
+				Initial* newInitial = new Initial(reader, targets[j], blacklist,
+						newOp, ip, itemTrail, propertyTrail);
+				stack.push_back(newInitial);
 			}
-			count++;
-			if (valid) {
-				itemTrail.push_back(targets[j]);
-				double ip =
-						(initial->getInpenalty() == 0) ?
-								1.0 :
-								(1.0 / ((1.0 / initial->getInpenalty()) + 1));
-				if ((newOp*ip) > level){
-					Blacklist* blacklist = new Blacklist(bl);
-					Initial* newInitial = new Initial(reader, targets[j], blacklist, newOp,
-							ip, itemTrail, propertyTrail);
-					stack.push_back(newInitial);
-				}
-				itemTrail.pop_back();
-			}
+			itemTrail.pop_back();
 		}
 		propertyTrail.pop_back();
 	}
-//	cout << "finish creation of " << count << "initials" << endl;
 	return newOp;
 }
 
