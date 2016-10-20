@@ -96,12 +96,13 @@ int Main::main(int argc, const char* argv[]) {
 	WebApi api;
 
 	unordered_map<int, TopKEntry> top = tks.search(itemId);
-	tracker->print();
 	printTopK(top, &api, *stream);
+
 	if (log != NULL){
 		delete log;
 	}
 	if (tracker != NULL){
+		tracker->print();
 		delete tracker;
 	}
 	return 0;
