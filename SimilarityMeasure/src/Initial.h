@@ -193,6 +193,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 			for (size_t i = 0; i < inUse.size(); i++) {
 				reader.unsetInUseFlag(inUse[i]);
 			}
+			inpenaltyAvailable = true;
 			return -1;
 		}
 		if (searchTrailTargets.size() == propertyTrail.size()) {
@@ -210,6 +211,7 @@ double Initial::computePenalty(int& debug, double* deltaReduce, Item* item, doub
 					for (size_t i = 0; i < inUse.size(); i++) {
 						reader.unsetInUseFlag(inUse[i]);
 					}
+					inpenaltyAvailable = true;
 					return -1;
 				}
 			}

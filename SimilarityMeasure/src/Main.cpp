@@ -11,28 +11,33 @@
 #include "TopKSearch.h"
 #include "IndexReader.h"
 #include "WebApi.h"
+#include "Tracker.h"
 
 #include <iostream>
 #include <unordered_map>
 #include <string>
+#include <ostream>
+#include <fstream>
+#include <string.h>
 
 using namespace std;
 
 class Main {
 public:
 	int main(int argc, const char* argv[]);
-	void printTopK(unordered_map<int, TopKEntry> top, WebApi* api);
+	void printTopK(unordered_map<int, TopKEntry> top, WebApi* api, ostream& stream);
 
 protected:
 	string helpText =
-			"usage: similarityMeasure [indexFileLocation/IndexFileName]\n\n"
+			"usage: similarityMeasure indexFileLocation/IndexFileName [LogFile] [TrackFile]\n\n"
 			"More information about similarityMeasure: "
 			"https://github.com/guenthermi/SimilarityMeasure";
 
+	ostream* log = NULL;
 };
 
 int Main::main(int argc, const char* argv[]) {
-	if (argc != 2){
+	if (!((argc == 2) || (argc == 3) || (argc == 4))){
 		cout << helpText << endl;
 		return 0;
 	}
@@ -51,19 +56,59 @@ int Main::main(int argc, const char* argv[]) {
 	cin >> k;
 	cout << "Maximal Accurancy: ";
 	cin >> acc;
+	ostream* stream;
+	if (argc >= 3){
+		char* csStdout = "stdout";
+		if (strcmp(argv[2], csStdout) == 0){
+			stream = &cout;
+		}else{
+			string logFile = string(argv[2]);
+			log = new ofstream(logFile);
+			stream = log;
+		}
+	}else{
+		stream = &cout;
+	}
+	Tracker* tracker = NULL;
+	if (argc == 4){
+		string trackFile = argv[3];
+		tracker = new Tracker(trackFile);
+		cout << "comma seperated list of items you want to tack (without \"Q\"):" << endl;
+		string listeners;
+		cin.ignore();
+		getline(cin,listeners);
+		string buffer;
+		for (int i=0; i<listeners.length(); i++){
+			if (listeners[i] != ','){
+				buffer += listeners[i];
+			}else{
+				tracker->registerListener(atoi(buffer.c_str()));
+				buffer = "";
+			}
+		}
+		tracker->registerListener(atoi(buffer.c_str()));
+	}
+
 	string path = string(argv[1]);
 	IndexReader reader(path);
-	TopKSearch tks(reader, k, acc);
+
+	TopKSearch tks(reader, k, acc, stream, tracker);
 	WebApi api;
 
 	unordered_map<int, TopKEntry> top = tks.search(itemId);
-	printTopK(top, &api);
-
+	tracker->print();
+	printTopK(top, &api, *stream);
+	if (log != NULL){
+		delete log;
+	}
+	if (tracker != NULL){
+		delete tracker;
+	}
 	return 0;
 }
 
-void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api) {
-	cout << "TOP K:" << endl;
+void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api, ostream& stream) {
+	stream << "TOP K:" << endl;
 	for (unordered_map<int, TopKEntry>::iterator it = top.begin();
 			it != top.end(); it++) {
 		string name = "Q" + std::to_string(it->first);
@@ -73,7 +118,7 @@ void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api) {
 				name = label + "(Q" + std::to_string(it->first) + ")";
 			}
 		}
-		cout << "\t" << "(" << it->second.weight << " ; " << it->second.delta
+		stream << "\t" << "(" << it->second.weight << " ; " << it->second.delta
 				<< ") \t: " << name << endl;
 	}
 }
@@ -117,13 +162,13 @@ void testAStarSearch() {
 	IndexReader reader(
 			"/home/michael/workspace/cpp/IndexTransformator/indexFiles/combinedIndexBin");
 
-	TopKSearch tks(reader, 3, 7);
+	TopKSearch tks(reader, 3, 7, &cout, NULL);
 
 	WebApi api;
 	Main myMain = Main();
 
 	unordered_map<int, TopKEntry> top = tks.search(testItems[1]);
-	myMain.printTopK(top, &api);
+	myMain.printTopK(top, &api, cout);
 
 	cout << "Complete AStarSearch Test" << endl << endl;
 }

@@ -20,7 +20,7 @@ using namespace std;
 
 class TopK {
 public:
-	TopK(int k);
+	TopK(int k, ostream* log);
 	void updateTopK(map<int, double>* candidates, double gReduction,
 			double cReduction, Blacklist& bl);
 	void reduceDeltas(double gReduction, Blacklist* bl);
@@ -38,18 +38,20 @@ protected:
 	double globalDelta;
 	int minTopId;
 	double minTopValue;
+	ostream* log;
 
 	void determineMin();
 };
 
-TopK::TopK(int k) {
+TopK::TopK(int k, ostream* log) {
 	this->k = k;
 	this->globalDelta = 1;
+	this->log = log;
 }
 
 void TopK::updateTopK(map<int, double>* candidates, double gReduction,
 		double cReduction, Blacklist& bl) {
-	cout << "cReduce: " << cReduction << " gReduce: " << gReduction
+	(*log) << "cReduce: " << cReduction << " gReduce: " << gReduction
 			<< " candidates size: " << candidates->size() << endl;
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
