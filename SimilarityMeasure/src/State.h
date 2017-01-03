@@ -46,6 +46,7 @@ protected:
 	double level;
 	TopK* topK;
 	ostream* log;
+	int lastOutput = 0;
 };
 
 State::State(TopK* topK, int level, ostream* log) {
@@ -91,8 +92,11 @@ Initial* State::getNextInitial(int& debug, IndexReader& reader,
 		if (iterationCount > maxIteration) {
 			return NULL;
 		}
-		if ((iterationCount % 100) == 0) {
-			(*log) << "Iteration: " << iterationCount << endl;
+		if ((iterationCount % 1000) == 0) {
+			if (iterationCount != lastOutput){
+				(*log) << "Iteration: " << iterationCount << endl;
+			}
+			lastOutput = iterationCount;
 		}
 	}
 

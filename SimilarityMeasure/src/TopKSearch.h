@@ -99,7 +99,6 @@ unordered_map<int, TopKEntry> TopKSearch::search(int itemId) {
 			if (init == NULL) {
 				break;
 			}
-			(*log) << "Iteration: " << iteration << endl;
 			processInitial(init, state);
 			delete init;
 			terminate = topK.hasConverged();
@@ -127,15 +126,12 @@ void TopKSearch::processInitial(Initial* initial, State& state) {
 
 	double oldIp = initial->getBaseIp();
 	double oldOp = initial->getOP();
-	(*log) << "old OP " << oldOp;
-	(*log) << " old IP " << oldIp;
-	(*log) << endl;
+
 	if ((ip != 0) && (oldIp > (1.0 / ((double) ip)))) {
 		double candidatesReduce = oldOp * oldIp;
 		double allReduce = candidatesReduce
 				- (oldOp * (1.0 / ((double) ip + 1.0)));
-		(*log) << " new OP: " << newOp << " --> allReduce: " << allReduce
-				<< " candidatesReduce: " << candidatesReduce << endl;
+
 		if (track != NULL) {
 			for (map<int, double>::iterator it = candidates->begin();
 					it != candidates->end(); it++) {
@@ -164,11 +160,6 @@ map<int, double>* TopKSearch::hasSimilarity(vector<int> propertyTrail,
 		vector<int> itemTrail, double weight, Blacklist& blacklist,
 		int& inpenalty) {
 
-	(*log) << "Call hasSimilarity itemTrail ";
-	DebugHelpers::printTrail(itemTrail, *log);
-	(*log) << " OP: " << weight << " PropertyTrail ";
-	DebugHelpers::printTrail(propertyTrail, *log);
-	(*log) << endl;
 	map<int, double>* result = new map<int, double>();
 	if (propertyTrail.empty()) {
 		return result;
