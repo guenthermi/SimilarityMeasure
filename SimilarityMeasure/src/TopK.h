@@ -51,8 +51,6 @@ TopK::TopK(int k, ostream* log) {
 
 void TopK::updateTopK(map<int, double>* candidates, double gReduction,
 		double cReduction, Blacklist& bl) {
-	(*log) << "cReduce: " << cReduction << " gReduce: " << gReduction
-			<< " candidates size: " << candidates->size() << endl;
 	for (map<int, double>::iterator it = candidates->begin();
 			it != candidates->end(); it++) {
 		TopKEntry& value = contents[it->first];

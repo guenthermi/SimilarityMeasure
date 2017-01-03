@@ -18,6 +18,7 @@
 #include <ostream>
 #include <fstream>
 #include <string.h>
+#include <algorithm>
 
 using namespace std;
 
@@ -33,6 +34,8 @@ protected:
 			"https://github.com/guenthermi/SimilarityMeasure";
 
 	ostream* log = NULL;
+
+	static bool compare(pair<int, TopKEntry>& a, pair<int, TopKEntry>& b);
 };
 
 int Main::main(int argc, const char* argv[]) {
@@ -109,15 +112,23 @@ int Main::main(int argc, const char* argv[]) {
 	return 0;
 }
 
-
 void Main::printTopK(unordered_map<int, TopKEntry> top, ostream& stream) {
+	// sort top
+	vector<pair<int, TopKEntry>> ordered(top.begin(), top.end());
+	sort(ordered.begin(), ordered.end(), compare);
+
+	// print output
 	stream << "TOP K:" << endl;
-	for (unordered_map<int, TopKEntry>::iterator it = top.begin();
-			it != top.end(); it++) {
+	for (vector<pair<int, TopKEntry>>::iterator it = ordered.begin();
+			it != ordered.end(); it++) {
 		string name = "Q" + std::to_string(it->first);
 		stream << "\t" << "(" << it->second.weight << " ; " << it->second.delta
 				<< ") \t: " << name << endl;
 	}
+}
+
+bool Main::compare(pair<int, TopKEntry>& a, pair<int, TopKEntry>& b){
+	return a.second.weight > b.second.weight;
 }
 
 void testIndexReader() {
