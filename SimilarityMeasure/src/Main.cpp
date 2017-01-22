@@ -36,7 +36,7 @@ protected:
 
 	ostream* log = NULL;
 
-	static bool compare(pair<int, TopKEntry>& a, pair<int, TopKEntry>& b);
+	static bool compare(const pair<int, TopKEntry>& a, const pair<int, TopKEntry>& b);
 };
 
 int Main::main(int argc, const char* argv[]) {
@@ -132,7 +132,7 @@ void Main::printTopK(unordered_map<int, TopKEntry> top, WebApi* api, ostream& st
 	}
 }
 
-bool Main::compare(pair<int, TopKEntry>& a, pair<int, TopKEntry>& b){
+bool Main::compare(const pair<int, TopKEntry>& a, const pair<int, TopKEntry>& b){
 	return a.second.weight > b.second.weight;
 }
 
